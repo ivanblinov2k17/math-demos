@@ -1,0 +1,500 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Три пирамиды в кубе</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600&family=JetBrains+Mono:wght@400;600&family=Unbounded:wght@500;700&display=swap">
+<style>
+  /* Layout: 3D-сцена слева на всю высоту, справа узкая панель шагов и расчётов; на телефоне — одна колонка */
+  :root {
+    --bg: #eceff3;
+    --surface: #ffffff;
+    --fg: #1b2230;
+    --muted: #5d6878;
+    --line: #d3d9e2;
+    --accent: #2f5fcf;
+    --pyr-1: #2f63d6;
+    --pyr-2: #e0533f;
+    --pyr-3: #e8a12c;
+    --pyr-neutral: #a3adba;
+    --edge: #1b2230;
+    --grid: #c6cdd8;
+    --font-display: "Unbounded", "Segoe UI", system-ui, sans-serif;
+    --font-body: "Golos Text", "Segoe UI", system-ui, sans-serif;
+    --font-mono: "JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #11151b; --surface: #1a2029; --fg: #e5e9ef; --muted: #98a3b3; --line: #2c3442;
+      --accent: #7ea2ff; --pyr-1: #4f80f0; --pyr-2: #f06a55; --pyr-3: #f2b443; --pyr-neutral: #6e7888;
+      --edge: #e5e9ef; --grid: #2c3442; color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #11151b; --surface: #1a2029; --fg: #e5e9ef; --muted: #98a3b3; --line: #2c3442;
+    --accent: #7ea2ff; --pyr-1: #4f80f0; --pyr-2: #f06a55; --pyr-3: #f2b443; --pyr-neutral: #6e7888;
+    --edge: #e5e9ef; --grid: #2c3442; color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg); color: var(--fg);
+    font-family: var(--font-body); font-size: 15px; line-height: 1.5;
+    padding-inline: 16px; padding-block: 20px 28px;
+  }
+  .wrap { max-width: 1280px; margin: 0 auto; display: grid; gap: 16px; }
+  header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 18px; }
+  h1 { font-family: var(--font-display); font-weight: 700; font-size: clamp(20px, 2.6vw, 28px); margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+  .formula-top { font-family: var(--font-mono); color: var(--muted); font-size: 15px; }
+  .main { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 16px; align-items: start; }
+  @media (max-width: 880px) { .main { grid-template-columns: minmax(0, 1fr); } }
+
+  .stage {
+    position: relative; height: clamp(380px, 76vh, 820px); min-width: 0;
+    border: 1px solid var(--line); border-radius: 10px; overflow: hidden;
+    background:
+      radial-gradient(ellipse at 50% 35%, color-mix(in srgb, var(--surface) 70%, transparent), transparent 70%),
+      var(--bg);
+  }
+  @media (max-width: 880px) { .stage { height: clamp(340px, 58vh, 560px); } }
+  .stage canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+  .stage canvas:active { cursor: grabbing; }
+  .hint {
+    position: absolute; left: 12px; bottom: 10px; font-size: 12px; color: var(--muted);
+    pointer-events: none; font-family: var(--font-mono);
+  }
+  .reset {
+    position: absolute; right: 10px; top: 10px;
+  }
+
+  .panel { display: grid; gap: 18px; min-width: 0; }
+  .label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.09em; color: var(--muted); font-weight: 600; margin: 0 0 8px; }
+
+  .steps { display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--surface); }
+  .steps button {
+    font: inherit; font-size: 13px; color: var(--fg); background: transparent; border: 0; padding: 9px 6px 8px;
+    cursor: pointer; display: grid; gap: 1px; justify-items: center; border-left: 1px solid var(--line);
+  }
+  .steps button:first-child { border-left: 0; }
+  .steps button b { font-family: var(--font-display); font-weight: 500; font-size: 16px; }
+  .steps button[aria-pressed="true"] { background: var(--accent); color: var(--surface); }
+  button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .story { min-height: 7.5em; }
+  .story h2 { font-size: 17px; margin: 0 0 4px; font-weight: 600; }
+  .story p { margin: 0; color: var(--muted); }
+
+  .slider { display: grid; gap: 4px; }
+  .slider-row { display: flex; justify-content: space-between; font-size: 13px; }
+  input[type="range"] { width: 100%; accent-color: var(--accent); }
+  input[type="range"]:disabled { opacity: 0.4; }
+
+  .pyrs { display: grid; gap: 6px; }
+  .pyr {
+    display: grid; grid-template-columns: auto 14px 1fr auto; align-items: center; gap: 10px;
+    padding: 7px 10px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface); cursor: pointer;
+    font-size: 14px;
+  }
+  .pyr input { margin: 0; accent-color: var(--accent); width: 16px; height: 16px; }
+  .sw { width: 14px; height: 14px; border-radius: 3px; }
+  .pyr .v { font-family: var(--font-mono); font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+  .toggles { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 14px; }
+  .toggles label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
+  .toggles input { accent-color: var(--accent); }
+
+  .calc { border-top: 1px solid var(--line); padding-top: 14px; display: grid; gap: 10px; }
+  .side { display: flex; align-items: center; gap: 10px; font-size: 14px; }
+  .side input {
+    width: 84px; font: inherit; font-family: var(--font-mono); padding: 5px 8px; border-radius: 6px;
+    border: 1px solid var(--line); background: var(--surface); color: var(--fg);
+  }
+  .eq { font-family: var(--font-mono); font-size: 13.5px; line-height: 1.75; font-variant-numeric: tabular-nums; overflow-x: auto; white-space: nowrap; }
+  .eq .k { color: var(--muted); }
+  .eq .res { color: var(--accent); font-weight: 600; }
+  .conclusion {
+    font-family: var(--font-mono); font-size: 15px; padding: 10px 12px; border-radius: 8px;
+    background: color-mix(in srgb, var(--accent) 12%, var(--surface)); border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line));
+  }
+  .note { font-size: 13px; color: var(--muted); margin: 0; }
+
+  .btn {
+    font: inherit; font-size: 13px; padding: 5px 10px; border-radius: 6px; cursor: pointer;
+    border: 1px solid var(--line); background: var(--surface); color: var(--fg);
+  }
+  .btn:hover { border-color: var(--accent); }
+  .err { color: #c0392b; font-size: 13px; padding: 16px; }
+  html, body { margin: 0; }
+  .back { flex-basis: 100%; font-size: 13px; color: var(--muted); text-decoration: none; }
+  .back:hover { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <a class="back" href="../../">← Все примеры</a>
+    <h1>Три пирамиды в кубе</h1>
+    <span class="formula-top">V = ⅓ · S<sub>осн</sub> · h</span>
+  </header>
+
+  <div class="main">
+    <div class="stage" id="stage">
+      <button class="btn reset" id="resetCam" type="button">Сбросить вид</button>
+      <div class="hint">тяни — вращать · колесо/щипок — масштаб · правая кнопка — сдвиг</div>
+    </div>
+
+    <aside class="panel">
+      <section>
+        <p class="label">Шаги</p>
+        <div class="steps" role="group" aria-label="Шаги демонстрации">
+          <button type="button" id="step1" aria-pressed="true"><b>1</b>Куб</button>
+          <button type="button" id="step2" aria-pressed="false"><b>2</b>Разрезать</button>
+          <button type="button" id="step3" aria-pressed="false"><b>3</b>Сравнить</button>
+        </div>
+      </section>
+
+      <section class="story" id="story" aria-live="polite"></section>
+
+      <section class="slider">
+        <div class="slider-row"><label for="explode">Раздвинуть пирамиды</label><span id="explodeVal" class="v"></span></div>
+        <input type="range" id="explode" min="0" max="100" value="0">
+      </section>
+
+      <section>
+        <p class="label">Пирамиды</p>
+        <div class="pyrs" id="pyrs"></div>
+      </section>
+
+      <section class="toggles">
+        <label><input type="checkbox" id="tHeight" checked> Высоты</label>
+        <label><input type="checkbox" id="tCube" checked> Контур куба</label>
+        <label><input type="checkbox" id="tGlass"> Прозрачность</label>
+      </section>
+
+      <section class="calc">
+        <div class="side"><label for="aInput">Ребро куба a =</label><input type="number" id="aInput" value="3" min="0.1" step="0.5"></div>
+        <div class="eq" id="eq"></div>
+        <div class="conclusion">V<sub>пир</sub> = a³ / 3 = ⅓ · a² · a = ⅓ · S<sub>осн</sub> · h</div>
+        <p class="note">Для любой пирамиды: если сдвигать слои параллельно основанию, площадь каждого сечения не меняется, значит не меняется и объём (принцип Кавальери). Поэтому формула верна для любой пирамиды с той же площадью основания и высотой.</p>
+      </section>
+    </aside>
+  </div>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+const S = 2;                      // ребро куба в единицах сцены
+const stage = document.getElementById("stage");
+const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+// ---------- Сцена ----------
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+stage.prepend(renderer.domElement);
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100);
+const CAM_HOME = new THREE.Vector3(6.2, 5.0, 7.6);
+const TARGET_HOME = new THREE.Vector3(0, 1.1, 0);
+camera.position.copy(CAM_HOME);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.copy(TARGET_HOME);
+controls.enableDamping = true;
+controls.minDistance = 3;
+controls.maxDistance = 30;
+controls.update();
+
+scene.add(new THREE.HemisphereLight(0xffffff, 0x8a93a3, 1.6));
+const sun = new THREE.DirectionalLight(0xffffff, 1.6);
+sun.position.set(4, 9, 6);
+scene.add(sun);
+const fill = new THREE.DirectionalLight(0xffffff, 0.5);
+fill.position.set(-6, 3, -4);
+scene.add(fill);
+
+let grid = null;
+
+// ---------- Пирамиды ----------
+// Общая вершина — угол куба (0,0,0) в локальных координатах. Основания — три грани, не содержащие эту вершину.
+const O = [0, 0, 0];
+const DEFS = [
+  { key: "x", name: "Основание — правая грань", token: "--pyr-1",
+    base: [[S,0,0],[S,S,0],[S,S,S],[S,0,S]], normal: [1,0,0], foot: [S,0,0],
+    // поворот в «стоячее» положение: основание на полу, вершина над углом
+    rot: [ 0, 1, 0,  -1, 0, 0,  0, 0, 1] },
+  { key: "y", name: "Основание — верхняя грань", token: "--pyr-2",
+    base: [[0,S,0],[S,S,0],[S,S,S],[0,S,S]], normal: [0,1,0], foot: [0,S,0],
+    rot: [ 0, 0, 1,   0,-1, 0,  1, 0, 0] },
+  { key: "z", name: "Основание — передняя грань", token: "--pyr-3",
+    base: [[0,0,S],[S,0,S],[S,S,S],[0,S,S]], normal: [0,0,1], foot: [0,0,S],
+    rot: [ 1, 0, 0,   0, 0,-1,  0, 1, 0] },
+];
+
+const OFFSET = new THREE.Vector3(-S/2, 0, -S/2);    // центр куба над началом координат
+const LINEUP_GAP = 0.9;
+
+const pyramids = DEFS.map((d, i) => {
+  const b = d.base;
+  const tris = [b[0],b[1],b[2], b[0],b[2],b[3]];
+  for (let k = 0; k < 4; k++) tris.push(O, b[k], b[(k+1)%4]);
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute("position", new THREE.Float32BufferAttribute(tris.flat(), 3));
+  geo.computeVertexNormals();
+
+  const mat = new THREE.MeshStandardMaterial({
+    color: 0x999999, roughness: 0.55, metalness: 0.0, flatShading: true,
+    side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1,
+  });
+  const obj = new THREE.Group();
+  const mesh = new THREE.Mesh(geo, mat);
+  obj.add(mesh);
+
+  const edgeMat = new THREE.LineBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.55 });
+  const edges = new THREE.LineSegments(new THREE.EdgesGeometry(geo), edgeMat);
+  obj.add(edges);
+
+  // высота: от вершины перпендикулярно основанию (совпадает с ребром куба)
+  const hMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+  const hMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, S, 12), hMat);
+  const dir = new THREE.Vector3(...d.foot).normalize();
+  hMesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), dir);
+  hMesh.position.copy(dir.clone().multiplyScalar(S/2));
+  const footMark = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.16, 0.16), hMat);
+  footMark.position.set(...d.foot);
+  const heightGroup = new THREE.Group();
+  heightGroup.add(hMesh, footMark);
+  obj.add(heightGroup);
+
+  const apex = new THREE.Mesh(new THREE.SphereGeometry(0.09, 20, 14), new THREE.MeshBasicMaterial({ color: 0x000000 }));
+  obj.add(apex);
+
+  scene.add(obj);
+
+  const m = new THREE.Matrix4();
+  const r = d.rot;
+  m.set(r[0],r[1],r[2],0, r[3],r[4],r[5],0, r[6],r[7],r[8],0, 0,0,0,1);
+  const lineupQuat = new THREE.Quaternion().setFromRotationMatrix(m);
+  const totalW = 3*S + 2*LINEUP_GAP;
+  const lineupPos = new THREE.Vector3(-totalW/2 + i*(S + LINEUP_GAP), S, -S/2);
+
+  obj.position.copy(OFFSET);
+  return {
+    def: d, obj, mesh, mat, edgeMat, hMat, heightGroup, apex,
+    normal: new THREE.Vector3(...d.normal),
+    lineupQuat, lineupPos,
+    targetPos: OFFSET.clone(), targetQuat: new THREE.Quaternion(),
+    color: new THREE.Color(), targetColor: new THREE.Color(),
+    visible: true,
+  };
+});
+
+// контур целого куба
+const cubeOutline = new THREE.LineSegments(
+  new THREE.EdgesGeometry(new THREE.BoxGeometry(S, S, S)),
+  new THREE.LineDashedMaterial({ color: 0x000000, dashSize: 0.12, gapSize: 0.08, transparent: true, opacity: 0.6 })
+);
+cubeOutline.position.set(0, S/2, 0);
+cubeOutline.computeLineDistances();
+scene.add(cubeOutline);
+
+// ---------- Тема ----------
+let palette = {};
+function readTheme() {
+  const cs = getComputedStyle(document.documentElement);
+  const get = n => cs.getPropertyValue(n).trim();
+  palette = {
+    pyr: DEFS.map(d => new THREE.Color(get(d.token))),
+    neutral: new THREE.Color(get("--pyr-neutral")),
+    edge: new THREE.Color(get("--edge")),
+    grid: new THREE.Color(get("--grid")),
+    fg: new THREE.Color(get("--fg")),
+    accent: new THREE.Color(get("--accent")),
+  };
+  pyramids.forEach(p => {
+    p.edgeMat.color.copy(palette.edge);
+    p.hMat.color.copy(palette.fg);
+    p.apex.material.color.copy(palette.accent);
+  });
+  cubeOutline.material.color.copy(palette.edge);
+  if (grid) { scene.remove(grid); grid.geometry.dispose(); }
+  grid = new THREE.GridHelper(16, 32, palette.grid, palette.grid);
+  grid.position.y = -0.001;
+  scene.add(grid);
+  pyramids.forEach(p => p.swatch && (p.swatch.style.background = "var(" + p.def.token + ")"));
+  applyTargets(true);
+}
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", readTheme);
+new MutationObserver(readTheme).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+
+// ---------- Состояние ----------
+const state = { step: 1, explode: 0, glass: false, heights: true, cube: true };
+const STORY = {
+  1: ["Куб с ребром a", "Его объём V = a · a · a = a³. Покрутите куб: внутри него уже спрятаны три пирамиды с общей вершиной в одном из углов."],
+  2: ["Режем куб на три пирамиды", "Из одной вершины куба (точка) проводим разрезы к трём дальним граням. Получаются три пирамиды: у каждой основание — грань куба, а вершина — общий угол. Двигайте ползунок, чтобы раздвинуть и снова собрать куб."],
+  3: ["Пирамиды одинаковые", "Поставим каждую пирамиду на её основание. У всех трёх основание — квадрат a × a, а высота равна a (выделенное ребро стоит перпендикулярно основанию). Пирамиды равны, вместе они заполняют куб, значит каждая занимает ровно треть его объёма."],
+};
+
+const els = {
+  steps: [1,2,3].map(n => document.getElementById("step" + n)),
+  story: document.getElementById("story"),
+  explode: document.getElementById("explode"),
+  explodeVal: document.getElementById("explodeVal"),
+  pyrs: document.getElementById("pyrs"),
+  tHeight: document.getElementById("tHeight"),
+  tCube: document.getElementById("tCube"),
+  tGlass: document.getElementById("tGlass"),
+  aInput: document.getElementById("aInput"),
+  eq: document.getElementById("eq"),
+};
+
+pyramids.forEach((p, i) => {
+  const row = document.createElement("label");
+  row.className = "pyr";
+  row.innerHTML = `<input type="checkbox" id="pv${i}" checked><span class="sw"></span><span>${p.def.name}</span><span class="v" data-v></span>`;
+  p.swatch = row.querySelector(".sw");
+  p.swatch.style.background = `var(${p.def.token})`;
+  p.volEl = row.querySelector("[data-v]");
+  row.querySelector("input").addEventListener("change", e => { p.visible = e.target.checked; p.obj.visible = p.visible; });
+  els.pyrs.appendChild(row);
+});
+
+function setStep(n) {
+  state.step = n;
+  if (n === 2 && state.explode === 0) state.explode = 0.5;
+  if (n === 1) state.explode = 0;
+  els.explode.value = Math.round(state.explode * 100);
+  applyTargets(false);
+  renderUI();
+}
+
+function applyTargets(instant) {
+  pyramids.forEach((p, i) => {
+    if (state.step === 3) {
+      p.targetPos.copy(p.lineupPos);
+      p.targetQuat.copy(p.lineupQuat);
+    } else {
+      p.targetPos.copy(OFFSET).addScaledVector(p.normal, state.explode * 1.6);
+      p.targetQuat.identity();
+    }
+    p.targetColor.copy(state.step === 1 ? palette.neutral : palette.pyr[i]);
+    if (instant) { p.color.copy(p.targetColor); }
+  });
+  cubeOutline.visible = state.cube && state.step !== 3;
+  pyramids.forEach(p => {
+    p.heightGroup.visible = state.heights && state.step !== 1;
+    p.apex.visible = state.step !== 1 || state.explode > 0;
+    p.mat.transparent = state.glass;
+    p.mat.opacity = state.glass ? 0.38 : 1;
+    p.mat.depthWrite = !state.glass;
+    p.mat.needsUpdate = true;
+  });
+}
+
+function fmt(x) {
+  return Number(x.toFixed(3)).toLocaleString("ru-RU", { maximumFractionDigits: 3 });
+}
+
+function renderUI() {
+  els.steps.forEach((b, i) => b.setAttribute("aria-pressed", String(state.step === i + 1)));
+  const [h, t] = STORY[state.step];
+  els.story.innerHTML = `<h2>${h}</h2><p>${t}</p>`;
+  els.explode.disabled = state.step === 3;
+  els.explodeVal.textContent = Math.round(state.explode * 100) + "%";
+
+  let a = parseFloat(els.aInput.value);
+  if (!(a > 0)) a = 1;
+  const V = a ** 3, Sb = a * a;
+  els.eq.innerHTML =
+    `<span class="k">V куба</span> = a³ = ${fmt(a)}³ = <span class="res">${fmt(V)}</span><br>` +
+    `<span class="k">S осн</span> = a² = <span class="res">${fmt(Sb)}</span>, <span class="k">h</span> = a = <span class="res">${fmt(a)}</span><br>` +
+    `<span class="k">3 · V пир</span> = V куба ⇒ <span class="k">V пир</span> = ${fmt(V)} / 3 = <span class="res">${fmt(V/3)}</span><br>` +
+    `<span class="k">проверка:</span> ⅓ · ${fmt(Sb)} · ${fmt(a)} = <span class="res">${fmt(Sb*a/3)}</span>`;
+  pyramids.forEach(p => p.volEl.textContent = "V = " + fmt(V/3));
+}
+
+els.steps.forEach((b, i) => b.addEventListener("click", () => setStep(i + 1)));
+els.explode.addEventListener("input", () => {
+  state.explode = els.explode.value / 100;
+  if (state.step === 1 && state.explode > 0) state.step = 2;
+  applyTargets(false); renderUI();
+});
+els.tHeight.addEventListener("change", () => { state.heights = els.tHeight.checked; applyTargets(false); });
+els.tCube.addEventListener("change", () => { state.cube = els.tCube.checked; applyTargets(false); });
+els.tGlass.addEventListener("change", () => { state.glass = els.tGlass.checked; applyTargets(false); });
+els.aInput.addEventListener("input", renderUI);
+
+// ---------- Камера ----------
+let camAnim = null;
+function flyCamera(pos, target) {
+  camAnim = { pos: pos.clone(), target: target.clone() };
+}
+document.getElementById("resetCam").addEventListener("click", () => {
+  flyCamera(state.step === 3 ? new THREE.Vector3(1.5, 6.0, 10.5) : CAM_HOME, TARGET_HOME);
+});
+els.steps[2].addEventListener("click", () => flyCamera(new THREE.Vector3(1.5, 6.0, 10.5), TARGET_HOME));
+els.steps[0].addEventListener("click", () => flyCamera(CAM_HOME, TARGET_HOME));
+controls.addEventListener("start", () => { camAnim = null; });
+
+// ---------- Размер и цикл ----------
+function resize() {
+  const w = stage.clientWidth, h = stage.clientHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  // на узком экране отодвигаем камеру, чтобы ряд пирамид помещался
+  camera.fov = w / h < 0.9 ? 52 : 38;
+  camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(stage);
+
+const clock = new THREE.Clock();
+function tick() {
+  const dt = Math.min(clock.getDelta(), 0.05);
+  const k = reduceMotion ? 1 : 1 - Math.exp(-dt * 5);
+  pyramids.forEach(p => {
+    p.obj.position.lerp(p.targetPos, k);
+    p.obj.quaternion.slerp(p.targetQuat, k);
+    p.color.lerp(p.targetColor, k);
+    p.mat.color.copy(p.color);
+  });
+  if (camAnim) {
+    const kc = reduceMotion ? 1 : 1 - Math.exp(-dt * 3);
+    camera.position.lerp(camAnim.pos, kc);
+    controls.target.lerp(camAnim.target, kc);
+    if (camera.position.distanceTo(camAnim.pos) < 0.01) camAnim = null;
+  }
+  controls.update();
+  renderer.render(scene, camera);
+  requestAnimationFrame(tick);
+}
+
+readTheme();
+renderUI();
+resize();
+tick();
+</script>
+<script>
+  // если модуль three.js не загрузился, показываем понятное сообщение
+  setTimeout(() => {
+    const st = document.getElementById("stage");
+    if (st && !st.querySelector("canvas")) {
+      const d = document.createElement("div");
+      d.className = "err";
+      d.textContent = "Не удалось загрузить 3D-библиотеку. Проверьте подключение к интернету и обновите страницу.";
+      st.appendChild(d);
+    }
+  }, 6000);
+</script>
+</body>
+</html>
