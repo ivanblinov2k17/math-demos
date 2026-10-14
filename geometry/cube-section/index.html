@@ -1,0 +1,737 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Сечение куба плоскостью</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600&family=JetBrains+Mono:wght@400;600&family=Unbounded:wght@500;700&display=swap">
+<style>
+  /* Layout: 3D-сцена слева, панель режима справа; под ними отдельный блок памяток. На телефоне всё в одну колонку */
+  :root {
+    --bg: #eceff3; --surface: #ffffff; --fg: #1b2230; --muted: #5d6878; --line: #d3d9e2; --accent: #2f5fcf;
+    --p1: #3d6fd6; --p2: #e2873a; --sec: #22a06b; --pt: #d1344b; --cube: #b3bcc8; --edge: #1b2230;
+    --ok: #1f8a57; --bad: #c8372d;
+    --font-display: "Unbounded", "Segoe UI", system-ui, sans-serif;
+    --font-body: "Golos Text", "Segoe UI", system-ui, sans-serif;
+    --font-mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #11151b; --surface: #1a2029; --fg: #e5e9ef; --muted: #98a3b3; --line: #2c3442; --accent: #7ea2ff;
+      --p1: #5b8af2; --p2: #f19a4c; --sec: #3cc78a; --pt: #ff6177; --cube: #5d6878; --edge: #e5e9ef;
+      --ok: #4cc98a; --bad: #ff6b5e; color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #11151b; --surface: #1a2029; --fg: #e5e9ef; --muted: #98a3b3; --line: #2c3442; --accent: #7ea2ff;
+    --p1: #5b8af2; --p2: #f19a4c; --sec: #3cc78a; --pt: #ff6177; --cube: #5d6878; --edge: #e5e9ef;
+    --ok: #4cc98a; --bad: #ff6b5e; color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { margin: 0; }
+  body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.5;
+         padding-inline: 16px; padding-block: 20px 40px; }
+  .wrap { max-width: 1280px; margin: 0 auto; display: grid; gap: 18px; }
+  header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 18px; }
+  .back { flex-basis: 100%; font-size: 13px; color: var(--muted); text-decoration: none; }
+  .back:hover { color: var(--accent); }
+  h1 { font-family: var(--font-display); font-weight: 700; font-size: clamp(20px, 2.6vw, 28px); margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+  .sub { color: var(--muted); }
+  .main { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 16px; align-items: start; }
+  @media (max-width: 900px) { .main { grid-template-columns: minmax(0, 1fr); } }
+
+  .stage { position: relative; height: clamp(380px, 74vh, 780px); min-width: 0; border: 1px solid var(--line);
+           border-radius: 10px; overflow: hidden; background: var(--surface); }
+  @media (max-width: 900px) { .stage { height: clamp(340px, 60vh, 560px); } }
+  .stage canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+  .labels { position: absolute; inset: 0; pointer-events: none; }
+  .lbl { font-family: var(--font-mono); font-weight: 600; font-size: 17px; color: var(--pt);
+         text-shadow: 0 0 3px var(--surface), 0 0 3px var(--surface), 0 0 6px var(--surface); }
+  .hint { position: absolute; left: 12px; bottom: 10px; font-size: 12px; color: var(--muted); pointer-events: none; font-family: var(--font-mono); }
+  .stage .reset { position: absolute; right: 10px; top: 10px; }
+  .banner { position: absolute; left: 12px; top: 10px; right: 140px; font-size: 14px; color: var(--bad); font-weight: 600; pointer-events: none; }
+
+  .panel { display: grid; gap: 16px; min-width: 0; }
+  .label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.09em; color: var(--muted); font-weight: 600; margin: 0 0 8px; }
+  .tabs { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--surface); }
+  .tabs button { font: inherit; font-size: 14px; font-weight: 500; padding: 9px 8px; border: 0; background: transparent; color: var(--fg); cursor: pointer; }
+  .tabs button + button { border-left: 1px solid var(--line); }
+  .tabs button[aria-pressed="true"] { background: var(--accent); color: var(--surface); }
+  button:focus-visible, input:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .btn { font: inherit; font-size: 13px; padding: 6px 10px; border-radius: 6px; cursor: pointer; border: 1px solid var(--line); background: var(--surface); color: var(--fg); }
+  .btn:hover { border-color: var(--accent); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+  .presets { display: flex; flex-wrap: wrap; gap: 6px; }
+
+  .sec-line { font-size: 15px; }
+  .sec-line b { color: var(--sec); }
+  .parts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .part { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; background: var(--surface); display: grid; gap: 6px; min-width: 0; }
+  .part h3 { margin: 0; font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .sw { width: 12px; height: 12px; border-radius: 3px; flex: none; }
+  .nums { display: grid; grid-template-columns: auto 1fr; gap: 0 10px; font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 14px; }
+  .nums span:nth-child(odd) { color: var(--muted); font-family: var(--font-body); font-size: 13px; }
+  .nums span:nth-child(even) { font-weight: 600; text-align: right; }
+  .why { font-size: 12.5px; color: var(--muted); line-height: 1.45; }
+  .why div + div { margin-top: 2px; }
+
+  .slider { display: grid; gap: 4px; }
+  .slider-row { display: flex; justify-content: space-between; font-size: 13px; }
+  input[type="range"] { width: 100%; accent-color: var(--accent); }
+  .toggles { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 14px; }
+  .toggles label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
+  .toggles input { accent-color: var(--accent); }
+
+  .task { border: 1px solid var(--line); border-radius: 8px; background: var(--surface); padding: 12px 14px; display: grid; gap: 10px; }
+  .task p { margin: 0; }
+  .task .q { font-size: 15.5px; }
+  .answer { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .answer input { width: 90px; font: inherit; font-family: var(--font-mono); font-size: 16px; padding: 6px 10px; border-radius: 6px;
+                  border: 1px solid var(--line); background: var(--surface); color: var(--fg); }
+  .verdict { font-weight: 600; min-height: 1.5em; }
+  .verdict.ok { color: var(--ok); } .verdict.bad { color: var(--bad); }
+  .score { font-size: 13px; color: var(--muted); font-family: var(--font-mono); }
+
+  .memo { display: grid; gap: 12px; }
+  .memo h2 { font-family: var(--font-display); font-weight: 500; font-size: 18px; margin: 0; }
+  .memo-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+  .card { border: 1px solid var(--line); border-radius: 10px; background: var(--surface); padding: 14px 16px; min-width: 0; }
+  .card h3 { margin: 0 0 6px; font-size: 15px; font-weight: 600; }
+  .card p, .card li { font-size: 14px; }
+  .card p { margin: 0 0 6px; }
+  .card ol, .card ul { margin: 0; padding-left: 20px; }
+  .card li + li { margin-top: 4px; }
+  .f { font-family: var(--font-mono); font-size: 14px; background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+       border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line)); border-radius: 6px; padding: 6px 10px; margin: 6px 0; display: block; }
+  .tablewrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; min-width: 560px; }
+  th, td { padding: 7px 10px; border-bottom: 1px solid var(--line); text-align: left; }
+  th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); font-weight: 600; }
+  td.n { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+  td button { font-size: 12px; padding: 3px 8px; }
+  .err { color: var(--bad); font-size: 13px; padding: 16px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a class="back" href="../../">← Все примеры</a>
+    <h1>Сечение куба плоскостью</h1>
+    <span class="sub">Плоскость через три точки делит куб на два многогранника</span>
+  </header>
+
+  <div class="main">
+    <div class="stage" id="stage">
+      <div class="labels" id="labels"></div>
+      <div class="banner" id="banner"></div>
+      <button class="btn reset" id="resetCam" type="button">Сбросить вид</button>
+      <div class="hint" id="hint">тяните точку A, B или C вдоль рёбер · тяните фон, чтобы вращать</div>
+    </div>
+
+    <aside class="panel">
+      <div class="tabs" role="group" aria-label="Режим">
+        <button type="button" id="modeExplore" aria-pressed="true">Исследовать</button>
+        <button type="button" id="modeQuiz" aria-pressed="false">Тренировка</button>
+      </div>
+
+      <!-- Исследование -->
+      <section id="explore" class="panel">
+        <div>
+          <p class="label">Типичные сечения</p>
+          <div class="presets" id="presets"></div>
+        </div>
+        <div class="sec-line" id="secLine"></div>
+        <div class="parts" id="parts"></div>
+      </section>
+
+      <!-- Тренировка -->
+      <section id="quiz" class="panel" hidden>
+        <div class="task">
+          <p class="label" style="margin:0">Задача</p>
+          <p class="q" id="qText"></p>
+          <div class="answer">
+            <label for="qAns">Ответ:</label>
+            <input type="number" id="qAns" min="0" step="1" inputmode="numeric">
+            <button class="btn primary" id="qCheck" type="button">Проверить</button>
+          </div>
+          <div class="verdict" id="qVerdict" aria-live="polite"></div>
+          <div class="presets">
+            <button class="btn" id="qHint" type="button">Показать сечение</button>
+            <button class="btn" id="qShow" type="button">Показать решение</button>
+            <button class="btn" id="qNext" type="button">Новая задача</button>
+          </div>
+          <div class="score" id="qScore"></div>
+        </div>
+        <div id="qSolution" hidden>
+          <div class="sec-line" id="qSecLine"></div>
+          <div class="parts" id="qParts" style="margin-top:10px"></div>
+        </div>
+      </section>
+
+      <section class="slider">
+        <div class="slider-row"><label for="explode">Раздвинуть части</label><span id="explodeVal"></span></div>
+        <input type="range" id="explode" min="0" max="100" value="0">
+      </section>
+      <section class="toggles">
+        <label><input type="checkbox" id="tVerts"> Вершины частей</label>
+        <label><input type="checkbox" id="tSnap" checked> Привязка к ½ и ⅓ ребра</label>
+      </section>
+    </aside>
+  </div>
+
+  <section class="memo" aria-labelledby="memoTitle">
+    <h2 id="memoTitle">Памятка</h2>
+    <div class="memo-grid">
+      <div class="card">
+        <h3>Сечение</h3>
+        <p>Сечение — многоугольник, по которому плоскость режет куб. Каждая его сторона лежит на одной грани куба.</p>
+        <span class="f">n = число граней куба, которые пересекает плоскость</span>
+        <p>У куба 6 граней, поэтому сечение бывает треугольником, четырёх-, пяти- или шестиугольником. Две стороны сечения на параллельных гранях параллельны.</p>
+      </div>
+      <div class="card">
+        <h3>Грани части</h3>
+        <span class="f">F = (граней куба, задетых частью) + 1</span>
+        <p>Плюс один — само сечение: оно становится новой гранью у <b>обеих</b> частей.</p>
+        <p>Если плоскость не проходит через вершины куба, каждая из n разрезанных граней достаётся обеим частям, а остальные 6 − n целиком одной из них:</p>
+        <span class="f">F₁ + F₂ = n + 8</span>
+      </div>
+      <div class="card">
+        <h3>Вершины части</h3>
+        <span class="f">V = (вершин куба по эту сторону) + n</span>
+        <p>Все вершины сечения — вершины обеих частей. Вершины куба, лежащие в самой плоскости, уже входят в n, их не считают второй раз.</p>
+        <span class="f">V₁ + V₂ = 8 + 2n  (если плоскость не идёт через вершины куба)</span>
+      </div>
+      <div class="card">
+        <h3>Рёбра: формула Эйлера</h3>
+        <p>Для любого выпуклого многогранника:</p>
+        <span class="f">V − E + F = 2  ⇒  E = V + F − 2</span>
+        <p>Удобно для проверки: посчитали грани и вершины, рёбра получаются сами. Для куба: 8 − 12 + 6 = 2.</p>
+      </div>
+      <div class="card">
+        <h3>Как решать задачу</h3>
+        <ol>
+          <li>Постройте сечение: соедините точки, лежащие на одной грани, и продолжите линии до рёбер.</li>
+          <li>Посчитайте стороны сечения: это n.</li>
+          <li>Для каждой части посчитайте вершины куба по её сторону.</li>
+          <li>Грани: перечислите грани куба, которые задевает часть, и прибавьте 1.</li>
+          <li>Проверьте по формуле Эйлера.</li>
+        </ol>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Типичные случаи</h3>
+      <p>Значения посчитаны этой же программой. Кнопка открывает случай в 3D.</p>
+      <div class="tablewrap"><table id="memoTable"></table></div>
+    </div>
+  </section>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { CSS2DRenderer, CSS2DObject } from "three/addons/renderers/CSS2DRenderer.js";
+
+const $ = id => document.getElementById(id);
+
+// ---------- Геометрия куба [0,1]^3 ----------
+const V = [...Array(8)].map((_, i) => new THREE.Vector3(i & 1, (i >> 1) & 1, (i >> 2) & 1));
+const EDGES = [];
+for (let a = 0; a < 8; a++) for (let b = a + 1; b < 8; b++) {
+  const x = a ^ b; if (x === 1 || x === 2 || x === 4) EDGES.push([a, b]);
+}
+const FACES = [];
+for (let k = 0; k < 3; k++) for (const val of [0, 1]) {
+  const [u, w] = [0, 1, 2].filter(j => j !== k);
+  FACES.push([[0,0],[1,0],[1,1],[0,1]].map(([bu, bw]) => (val << k) | (bu << u) | (bw << w)));
+}
+
+const key = p => p.toArray().map(x => Math.round(x * 1e5)).join(",");
+function dedupe(poly) {
+  const out = [];
+  poly.forEach(p => { if (!out.length || out[out.length - 1].distanceTo(p) > 1e-6) out.push(p); });
+  while (out.length > 1 && out[0].distanceTo(out[out.length - 1]) < 1e-6) out.pop();
+  return out;
+}
+function area(poly) {
+  const s = new THREE.Vector3();
+  for (let i = 0; i < poly.length; i++) s.add(new THREE.Vector3().crossVectors(poly[i], poly[(i + 1) % poly.length]));
+  return s.length() / 2;
+}
+function clip(poly, f) {
+  const out = [];
+  for (let i = 0; i < poly.length; i++) {
+    const P = poly[i], Q = poly[(i + 1) % poly.length], fp = f(P), fq = f(Q);
+    if (fp >= 0) out.push(P.clone());
+    if ((fp > 0 && fq < 0) || (fp < 0 && fq > 0)) out.push(P.clone().lerp(Q, fp / (fp - fq)));
+  }
+  return dedupe(out);
+}
+
+// Разбор: плоскость через три точки → сечение и две части с подсчётом F, V, E
+function analyze(pts) {
+  const n = new THREE.Vector3().subVectors(pts[1], pts[0]).cross(new THREE.Vector3().subVectors(pts[2], pts[0]));
+  if (n.length() < 1e-6) return { error: "collinear" };
+  n.normalize();
+  const c0 = n.dot(pts[0]);
+  const dist = p => { const v = n.dot(p) - c0; return Math.abs(v) < 1e-7 ? 0 : v; };
+  const d = V.map(dist);
+  if (d.every(x => x >= 0) || d.every(x => x <= 0)) return { error: "nosplit" };
+
+  let sec = [];
+  const seen = new Set();
+  const add = p => { const k = key(p); if (!seen.has(k)) { seen.add(k); sec.push(p); } };
+  V.forEach((v, i) => { if (d[i] === 0) add(v.clone()); });
+  EDGES.forEach(([a, b]) => { if (d[a] * d[b] < 0) add(V[a].clone().lerp(V[b], d[a] / (d[a] - d[b]))); });
+  const cen = sec.reduce((s, p) => s.add(p), new THREE.Vector3()).divideScalar(sec.length);
+  const u = new THREE.Vector3().subVectors(sec[0], cen).normalize();
+  const w = new THREE.Vector3().crossVectors(n, u);
+  const ang = p => { const r = new THREE.Vector3().subVectors(p, cen); return Math.atan2(r.dot(w), r.dot(u)); };
+  sec.sort((p, q) => ang(p) - ang(q));
+
+  const parts = [1, -1].map(s => {
+    const polys = [];
+    FACES.forEach(f => {
+      const cp = clip(f.map(i => V[i]), p => s * dist(p));
+      if (cp.length >= 3 && area(cp) > 1e-9) polys.push({ pts: cp, sec: false });
+    });
+    polys.push({ pts: sec, sec: true });
+    const vmap = new Map();
+    polys.forEach(pl => pl.pts.forEach(p => { const k = key(p); if (!vmap.has(k)) vmap.set(k, p); }));
+    const emap = new Map();
+    polys.forEach(pl => pl.pts.forEach((p, i) => {
+      const q = pl.pts[(i + 1) % pl.pts.length];
+      const k = [key(p), key(q)].sort().join("|");
+      if (!emap.has(k)) emap.set(k, [p, q]);
+    }));
+    return {
+      polys, F: polys.length, V: vmap.size, E: emap.size,
+      verts: [...vmap.values()], edges: [...emap.values()],
+      cubeVerts: d.filter(x => s * x > 0).length, cubeFaces: polys.length - 1,
+    };
+  });
+  return { n, nSec: sec.length, sec, parts };
+}
+
+// Точка на ребре: { e: индекс ребра, t: 0..1 }
+const pos = p => V[EDGES[p.e][0]].clone().lerp(V[EDGES[p.e][1]], p.t);
+function onEdge(x, y, z) {
+  const p = new THREE.Vector3(x, y, z);
+  for (let e = 0; e < EDGES.length; e++) {
+    const a = V[EDGES[e][0]], b = V[EDGES[e][1]];
+    const ax = [0, 1, 2].find(k => a.getComponent(k) !== b.getComponent(k));
+    if ([0, 1, 2].every(k => k === ax || Math.abs(p.getComponent(k) - a.getComponent(k)) < 1e-9))
+      return { e, t: p.getComponent(ax) - a.getComponent(ax) };
+  }
+  throw new Error("точка не на ребре");
+}
+
+const PRESETS = [
+  { name: "Треугольник", note: "отсекает вершину", pts: [[0.5,0,0],[0,0.5,0],[0,0,0.5]] },
+  { name: "Четырёхугольник", note: "отсекает ребро", pts: [[2/3,0,0],[0,2/3,0],[2/3,0,1]] },
+  { name: "Четырёхугольник", note: "пересекает 4 параллельных ребра", pts: [[0,1/3,0],[1,2/3,0],[0,1/3,1]] },
+  { name: "Прямоугольник", note: "через два противоположных ребра", pts: [[0,0,0],[1,1,0],[0,0,1]] },
+  { name: "Пятиугольник", note: "отсекает три вершины", pts: [[1,0.4,0],[1,0,0.4],[0.2,1,1]] },
+  { name: "Шестиугольник", note: "через середины шести рёбер", pts: [[1,0.5,0],[0,1,0.5],[0.5,0,1]] },
+].map(p => ({ ...p, pts: p.pts.map(a => onEdge(...a)) }));
+
+// ---------- Сцена ----------
+const stage = $("stage");
+const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+stage.prepend(renderer.domElement);
+const labelRenderer = new CSS2DRenderer({ element: $("labels") });
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(36, 1, 0.1, 100);
+const CAM_HOME = new THREE.Vector3(3.6, 3.0, 5.4);
+camera.position.copy(CAM_HOME);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true; controls.minDistance = 2.5; controls.maxDistance = 20;
+scene.add(new THREE.HemisphereLight(0xffffff, 0x8a93a3, 1.7));
+const sun = new THREE.DirectionalLight(0xffffff, 1.3); sun.position.set(3, 6, 5); scene.add(sun);
+
+// root: единичный куб, растянутый до ребра 2 и отцентрованный
+const root = new THREE.Group();
+root.scale.setScalar(2); root.position.set(-1, -1, -1);
+scene.add(root);
+const partsRoot = new THREE.Group(); root.add(partsRoot);
+
+let C = {};
+function readTheme() {
+  const cs = getComputedStyle(document.documentElement);
+  const g = n => new THREE.Color(cs.getPropertyValue(n).trim());
+  C = { p1: g("--p1"), p2: g("--p2"), sec: g("--sec"), pt: g("--pt"), cube: g("--cube"), edge: g("--edge") };
+  pointObjs.forEach(o => o.mesh.material.color.copy(C.pt));
+  rebuild();
+}
+
+// Точки A, B, C
+const pointObjs = ["A", "B", "C"].map(name => {
+  const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.03, 20, 14), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
+  const hit = new THREE.Mesh(new THREE.SphereGeometry(0.075, 10, 8), new THREE.MeshBasicMaterial({ visible: false }));
+  mesh.add(hit);
+  const div = document.createElement("div"); div.className = "lbl"; div.textContent = name;
+  const label = new CSS2DObject(div); label.center.set(-0.5, 1.1); mesh.add(label);
+  root.add(mesh);
+  return { name, mesh, hit, label };
+});
+
+// ---------- Состояние ----------
+const state = {
+  mode: "explore",
+  pts: PRESETS[5].pts.map(p => ({ ...p })),
+  explode: 0, verts: false, snap: true,
+  quiz: null, score: { ok: 0, total: 0 },
+};
+let result = null;
+
+function tube(a, b, r, mat) {
+  const len = a.distanceTo(b);
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, len, 8, 1, true), mat);
+  m.position.copy(a).add(b).multiplyScalar(0.5);
+  m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3().subVectors(b, a).normalize());
+  return m;
+}
+function polysGeometry(polys) {
+  const arr = [];
+  polys.forEach(pl => { for (let i = 1; i < pl.length - 1; i++) arr.push(...pl[0].toArray(), ...pl[i].toArray(), ...pl[i + 1].toArray()); });
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.Float32BufferAttribute(arr, 3));
+  g.computeVertexNormals();
+  return g;
+}
+const faceMat = color => new THREE.MeshStandardMaterial({ color, transparent: true, opacity: 0.32, depthWrite: false, side: THREE.DoubleSide, roughness: 0.7 });
+
+function clearGroup(g) {
+  while (g.children.length) {
+    const c = g.children.pop();
+    c.traverse(o => { o.geometry?.dispose(); o.material?.dispose?.(); });
+  }
+}
+
+const partGroups = [];
+function buildPart(part, color, showSec) {
+  const g = new THREE.Group();
+  const cubePolys = part.polys.filter(p => !p.sec).map(p => p.pts);
+  g.add(new THREE.Mesh(polysGeometry(cubePolys), faceMat(color)));
+  if (showSec) {
+    const sp = part.polys.find(p => p.sec);
+    if (sp) { const m = faceMat(C.sec); m.opacity = 0.55; g.add(new THREE.Mesh(polysGeometry([sp.pts]), m)); }
+  }
+  const em = new THREE.MeshBasicMaterial({ color: C.edge });
+  part.edges.forEach(([a, b]) => g.add(tube(a, b, 0.006, em)));
+  if (state.verts) {
+    const vm = new THREE.MeshBasicMaterial({ color });
+    part.verts.forEach(p => { const s = new THREE.Mesh(new THREE.SphereGeometry(0.022, 12, 10), vm); s.position.copy(p); g.add(s); });
+  }
+  return g;
+}
+const CUBE_PART = (() => {
+  const polys = FACES.map(f => ({ pts: f.map(i => V[i]), sec: false }));
+  return { polys, edges: EDGES.map(([a, b]) => [V[a], V[b]]), verts: V };
+})();
+
+function rebuild() {
+  if (!C.edge) return;
+  clearGroup(partsRoot); partGroups.length = 0;
+  const pts = state.pts.map(pos);
+  pointObjs.forEach((o, i) => o.mesh.position.copy(pts[i]));
+  result = analyze(pts);
+  const hidden = state.mode === "quiz" && state.quiz && !state.quiz.revealed;
+  if (result.error || hidden) {
+    const cg = buildPart(CUBE_PART, C.cube, false);
+    partsRoot.add(cg);
+    if (!result.error && hidden && state.quiz.hint) {
+      const m = faceMat(C.sec); m.opacity = 0.6;
+      partsRoot.add(new THREE.Mesh(polysGeometry([result.sec]), m));
+      const em = new THREE.MeshBasicMaterial({ color: C.sec });
+      result.sec.forEach((p, i) => partsRoot.add(tube(p, result.sec[(i + 1) % result.sec.length], 0.009, em)));
+    }
+  } else {
+    result.parts.forEach((part, i) => {
+      const g = buildPart(part, i === 0 ? C.p1 : C.p2, true);
+      partGroups.push(g); partsRoot.add(g);
+    });
+  }
+  applyExplode();
+  renderPanel();
+}
+function applyExplode() {
+  const e = (result && !result.error) ? state.explode : 0;
+  partGroups.forEach((g, i) => g.position.copy(result.n).multiplyScalar((i === 0 ? 1 : -1) * e * 0.45));
+  const showPts = e < 0.08 || partGroups.length === 0;
+  pointObjs.forEach(o => { o.mesh.visible = showPts; o.label.visible = showPts; });
+  $("explodeVal").textContent = Math.round(state.explode * 100) + "%";
+}
+
+// ---------- Панель ----------
+const NAMES = { 3: "треугольник", 4: "четырёхугольник", 5: "пятиугольник", 6: "шестиугольник" };
+function plural(n, one, few, many) {
+  const m10 = n % 10, m100 = n % 100;
+  if (m10 === 1 && m100 !== 11) return one;
+  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few;
+  return many;
+}
+function partsHTML(r) {
+  return r.parts.map((p, i) => `
+    <div class="part">
+      <h3><span class="sw" style="background:var(${i === 0 ? "--p1" : "--p2"})"></span>Часть ${i + 1}</h3>
+      <div class="nums">
+        <span>Граней</span><span>${p.F}</span>
+        <span>Вершин</span><span>${p.V}</span>
+        <span>Рёбер</span><span>${p.E}</span>
+      </div>
+      <div class="why">
+        <div>F = ${p.cubeFaces} ${plural(p.cubeFaces, "грань", "грани", "граней")} куба + 1</div>
+        <div>V = ${p.cubeVerts} ${plural(p.cubeVerts, "вершина", "вершины", "вершин")} куба + ${r.nSec}</div>
+        <div>${p.V} − ${p.E} + ${p.F} = ${p.V - p.E + p.F}</div>
+      </div>
+    </div>`).join("");
+}
+function secHTML(r) {
+  return `Сечение — <b>${NAMES[r.nSec] || r.nSec + "-угольник"}</b> (n = ${r.nSec})`;
+}
+function renderPanel() {
+  const r = result;
+  const banner = r.error === "collinear" ? "Точки совпадают или лежат на одной прямой: плоскость не задана."
+    : r.error === "nosplit" ? "Плоскость не режет куб: она совпадает с гранью."
+    : "";
+  $("banner").textContent = banner;
+  if (state.mode === "explore") {
+    $("secLine").innerHTML = r.error ? "Передвиньте одну из точек." : secHTML(r);
+    $("parts").innerHTML = r.error ? "" : partsHTML(r);
+  } else if (state.quiz) {
+    $("qSolution").hidden = !state.quiz.revealed;
+    if (state.quiz.revealed) { $("qSecLine").innerHTML = secHTML(r); $("qParts").innerHTML = partsHTML(r); }
+  }
+  $("hint").textContent = state.mode === "explore"
+    ? "тяните точку A, B или C вдоль рёбер · тяните фон, чтобы вращать"
+    : "тяните фон, чтобы вращать";
+}
+
+PRESETS.forEach((p, i) => {
+  const b = document.createElement("button");
+  b.className = "btn"; b.type = "button";
+  b.textContent = p.name + (i === 1 || i === 2 ? (i === 1 ? " · ребро" : " · 4 ребра") : "");
+  b.title = p.note;
+  b.addEventListener("click", () => loadPreset(i));
+  $("presets").appendChild(b);
+});
+function loadPreset(i) {
+  setMode("explore");
+  state.pts = PRESETS[i].pts.map(p => ({ ...p }));
+  rebuild();
+}
+
+// Таблица в памятке
+(() => {
+  let html = "<tr><th>Сечение</th><th>Как проходит</th><th>Часть 1: F / V / E</th><th>Часть 2: F / V / E</th><th></th></tr>";
+  PRESETS.forEach((p, i) => {
+    const r = analyze(p.pts.map(pos));
+    const [a, b] = [...r.parts].sort((x, y) => x.F - y.F);
+    html += `<tr><td>${p.name}</td><td>${p.note}</td><td class="n">${a.F} / ${a.V} / ${a.E}</td><td class="n">${b.F} / ${b.V} / ${b.E}</td>
+      <td><button class="btn" type="button" data-i="${i}">Показать</button></td></tr>`;
+  });
+  $("memoTable").innerHTML = html;
+  $("memoTable").querySelectorAll("button").forEach(b => b.addEventListener("click", () => {
+    loadPreset(+b.dataset.i);
+    stage.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "center" });
+  }));
+})();
+
+// ---------- Тренировка ----------
+const QTYPES = [
+  { k: "F", who: "max", text: "Сколько граней у многогранника, у которого больше граней?" },
+  { k: "F", who: "min", text: "Сколько граней у многогранника, у которого меньше граней?" },
+  { k: "V", who: "max", text: "Сколько вершин у многогранника, у которого больше вершин?" },
+  { k: "V", who: "min", text: "Сколько вершин у многогранника, у которого меньше вершин?" },
+  { k: "E", who: "max", text: "Сколько рёбер у многогранника, у которого больше рёбер?" },
+  { k: "E", who: "min", text: "Сколько рёбер у многогранника, у которого меньше рёбер?" },
+  { k: "n", who: null, text: "Сколько сторон у сечения куба этой плоскостью?" },
+];
+const TS = [0.5, 0.5, 0.5, 1/3, 2/3, 0.25, 0.75, 0, 1];
+const rnd = a => a[Math.floor(Math.random() * a.length)];
+function newTask() {
+  for (let tries = 0; tries < 2000; tries++) {
+    const es = new Set(); while (es.size < 3) es.add(Math.floor(Math.random() * 12));
+    const pts = [...es].map(e => ({ e, t: rnd(TS) }));
+    const r = analyze(pts.map(pos));
+    if (r.error) continue;
+    const q = rnd(QTYPES);
+    let ans;
+    if (q.k === "n") ans = r.nSec;
+    else {
+      const [x, y] = r.parts.map(p => p[q.k]);
+      if (x === y) continue;
+      ans = q.who === "max" ? Math.max(x, y) : Math.min(x, y);
+    }
+    state.quiz = { pts, q, ans, revealed: false, hint: false, checked: false };
+    state.pts = pts.map(p => ({ ...p }));
+    state.explode = 0; $("explode").value = 0;
+    $("qText").textContent = "Плоскость, проходящая через точки A, B и C, разбивает куб на два многогранника. " + q.text;
+    $("qAns").value = ""; $("qVerdict").textContent = ""; $("qVerdict").className = "verdict";
+    rebuild();
+    return;
+  }
+}
+function updateScore() {
+  $("qScore").textContent = state.score.total ? `Верно: ${state.score.ok} из ${state.score.total}` : "";
+}
+$("qCheck").addEventListener("click", () => {
+  const qz = state.quiz; if (!qz) return;
+  const v = parseInt($("qAns").value, 10);
+  if (Number.isNaN(v)) { $("qVerdict").textContent = "Введите число."; $("qVerdict").className = "verdict"; return; }
+  const ok = v === qz.ans;
+  if (!qz.checked) { qz.checked = true; state.score.total++; if (ok) state.score.ok++; updateScore(); }
+  $("qVerdict").textContent = ok ? "Верно!" : "Неверно. Попробуйте ещё раз или откройте сечение.";
+  $("qVerdict").className = "verdict " + (ok ? "ok" : "bad");
+  if (ok) { qz.revealed = true; rebuild(); }
+});
+$("qAns").addEventListener("keydown", e => { if (e.key === "Enter") $("qCheck").click(); });
+$("qHint").addEventListener("click", () => { if (state.quiz) { state.quiz.hint = true; rebuild(); } });
+$("qShow").addEventListener("click", () => {
+  const qz = state.quiz; if (!qz) return;
+  if (!qz.checked) { qz.checked = true; state.score.total++; updateScore(); }
+  qz.revealed = true;
+  $("qVerdict").textContent = "Ответ: " + qz.ans; $("qVerdict").className = "verdict";
+  state.explode = 0.5; $("explode").value = 50;
+  rebuild();
+});
+$("qNext").addEventListener("click", newTask);
+
+function setMode(m) {
+  if (state.mode === m) return;
+  state.mode = m;
+  $("modeExplore").setAttribute("aria-pressed", String(m === "explore"));
+  $("modeQuiz").setAttribute("aria-pressed", String(m === "quiz"));
+  $("explore").hidden = m !== "explore";
+  $("quiz").hidden = m !== "quiz";
+  if (m === "quiz") newTask();
+  else { state.quiz = null; rebuild(); }
+}
+$("modeExplore").addEventListener("click", () => setMode("explore"));
+$("modeQuiz").addEventListener("click", () => setMode("quiz"));
+
+$("explode").addEventListener("input", e => { state.explode = e.target.value / 100; applyExplode(); });
+$("tVerts").addEventListener("change", e => { state.verts = e.target.checked; rebuild(); });
+$("tSnap").addEventListener("change", e => { state.snap = e.target.checked; });
+
+// ---------- Перетаскивание точек вдоль рёбер ----------
+const ray = new THREE.Raycaster();
+const ndc = new THREE.Vector2();
+let drag = -1;
+function setNDC(e) {
+  const r = renderer.domElement.getBoundingClientRect();
+  ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  return r;
+}
+function canDrag() { return state.mode === "explore" && (state.explode < 0.08); }
+function pickPoint(e) {
+  setNDC(e); ray.setFromCamera(ndc, camera);
+  const hits = ray.intersectObjects(pointObjs.map(o => o.hit), false);
+  return hits.length ? pointObjs.findIndex(o => o.hit === hits[0].object) : -1;
+}
+renderer.domElement.addEventListener("pointerdown", e => {
+  if (!canDrag()) return;
+  const i = pickPoint(e);
+  if (i < 0) return;
+  drag = i; controls.enabled = false;
+  renderer.domElement.setPointerCapture(e.pointerId);
+  renderer.domElement.style.cursor = "grabbing";
+});
+renderer.domElement.addEventListener("pointermove", e => {
+  if (drag < 0) {
+    if (canDrag()) renderer.domElement.style.cursor = pickPoint(e) >= 0 ? "grab" : "";
+    return;
+  }
+  const rect = setNDC(e); ray.setFromCamera(ndc, camera);
+  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+  const toScreen = p => { const v = root.localToWorld(p.clone()).project(camera); return [(v.x + 1) / 2 * rect.width, (1 - v.y) / 2 * rect.height]; };
+  // ближайшее ребро на экране
+  let best = -1, bestD = Infinity;
+  EDGES.forEach(([a, b], ei) => {
+    const [ax, ay] = toScreen(V[a]), [bx, by] = toScreen(V[b]);
+    const dx = bx - ax, dy = by - ay, L = dx * dx + dy * dy || 1;
+    const t = Math.max(0, Math.min(1, ((mx - ax) * dx + (my - ay) * dy) / L));
+    const d = Math.hypot(ax + t * dx - mx, ay + t * dy - my);
+    if (d < bestD) { bestD = d; best = ei; }
+  });
+  // параметр на ребре: ближайшая точка между лучом и ребром в 3D
+  const o = root.worldToLocal(ray.ray.origin.clone());
+  const r2 = root.worldToLocal(ray.ray.origin.clone().add(ray.ray.direction)).sub(o);
+  const A = V[EDGES[best][0]], ev = new THREE.Vector3().subVectors(V[EDGES[best][1]], A);
+  const w0 = new THREE.Vector3().subVectors(o, A);
+  const a = r2.dot(r2), b = r2.dot(ev), c = ev.dot(ev), d = r2.dot(w0), ee = ev.dot(w0);
+  const den = a * c - b * b;
+  let t = Math.abs(den) < 1e-12 ? 0.5 : (a * ee - b * d) / den;
+  t = Math.max(0, Math.min(1, t));
+  if (state.snap) {
+    const grid = [0, 1/6, 1/4, 1/3, 1/2, 2/3, 3/4, 5/6, 1];
+    t = grid.reduce((p, q) => Math.abs(q - t) < Math.abs(p - t) ? q : p);
+  }
+  const cur = state.pts[drag];
+  if (cur.e !== best || Math.abs(cur.t - t) > 1e-9) { state.pts[drag] = { e: best, t }; rebuild(); }
+});
+const endDrag = e => {
+  if (drag < 0) return;
+  drag = -1; controls.enabled = true; renderer.domElement.style.cursor = "";
+  try { renderer.domElement.releasePointerCapture(e.pointerId); } catch {}
+};
+renderer.domElement.addEventListener("pointerup", endDrag);
+renderer.domElement.addEventListener("pointercancel", endDrag);
+
+// ---------- Камера, размер, цикл ----------
+let camAnim = null;
+$("resetCam").addEventListener("click", () => { camAnim = CAM_HOME.clone(); });
+controls.addEventListener("start", () => { camAnim = null; });
+function resize() {
+  const w = stage.clientWidth, h = stage.clientHeight;
+  renderer.setSize(w, h, false); labelRenderer.setSize(w, h);
+  camera.aspect = w / h; camera.fov = w / h < 0.9 ? 50 : 36; camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(stage);
+const clock = new THREE.Clock();
+function tick() {
+  const dt = Math.min(clock.getDelta(), 0.05);
+  if (camAnim) {
+    const k = reduceMotion ? 1 : 1 - Math.exp(-dt * 4);
+    camera.position.lerp(camAnim, k); controls.target.lerp(new THREE.Vector3(), k);
+    if (camera.position.distanceTo(camAnim) < 0.01) camAnim = null;
+  }
+  controls.update();
+  renderer.render(scene, camera);
+  labelRenderer.render(scene, camera);
+  requestAnimationFrame(tick);
+}
+
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", readTheme);
+new MutationObserver(readTheme).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+readTheme();
+updateScore();
+resize();
+tick();
+</script>
+<script>
+  setTimeout(() => {
+    const st = document.getElementById("stage");
+    if (st && !st.querySelector("canvas")) {
+      const d = document.createElement("div"); d.className = "err";
+      d.textContent = "Не удалось загрузить 3D-библиотеку. Проверьте подключение к интернету и обновите страницу.";
+      st.appendChild(d);
+    }
+  }, 6000);
+</script>
+</body>
+</html>
