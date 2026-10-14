@@ -1,0 +1,601 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Объём конуса</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600&family=JetBrains+Mono:wght@400;600&family=Unbounded:wght@500;700&display=swap">
+<style>
+  /* Layout: 3D-сцена слева, справа вкладки «Конус» и «Доказательство» с управлением и текстом; на телефоне одна колонка */
+  :root {
+    --bg: #eceff3; --surface: #ffffff; --fg: #1b2230; --muted: #5d6878; --line: #d3d9e2; --accent: #2f5fcf;
+    --cone: #8a94a6; --pyr: #2f63d6; --circ: #d1344b; --c1: #2f63d6; --c2: #e0533f; --c3: #e8a12c; --slice: #22a06b; --edge: #1b2230;
+    --font-display: "Unbounded", "Segoe UI", system-ui, sans-serif;
+    --font-body: "Golos Text", "Segoe UI", system-ui, sans-serif;
+    --font-mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #11151b; --surface: #1a2029; --fg: #e5e9ef; --muted: #98a3b3; --line: #2c3442; --accent: #7ea2ff;
+      --cone: #9aa5b8; --pyr: #5b8af2; --circ: #ff6177; --c1: #4f80f0; --c2: #f06a55; --c3: #f2b443; --slice: #3cc78a; --edge: #e5e9ef;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #11151b; --surface: #1a2029; --fg: #e5e9ef; --muted: #98a3b3; --line: #2c3442; --accent: #7ea2ff;
+    --cone: #9aa5b8; --pyr: #5b8af2; --circ: #ff6177; --c1: #4f80f0; --c2: #f06a55; --c3: #f2b443; --slice: #3cc78a; --edge: #e5e9ef;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { margin: 0; }
+  body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.5;
+         padding-inline: 16px; padding-block: 20px 40px; }
+  .wrap { max-width: 1280px; margin: 0 auto; display: grid; gap: 18px; }
+  header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 18px; }
+  .back { flex-basis: 100%; font-size: 13px; color: var(--muted); text-decoration: none; }
+  .back:hover { color: var(--accent); }
+  h1 { font-family: var(--font-display); font-weight: 700; font-size: clamp(20px, 2.6vw, 28px); margin: 0; letter-spacing: -0.01em; }
+  .formula-top { font-family: var(--font-mono); color: var(--muted); }
+  .main { display: grid; grid-template-columns: minmax(0, 1fr) 400px; gap: 16px; align-items: start; }
+  @media (max-width: 920px) { .main { grid-template-columns: minmax(0, 1fr); } }
+
+  .stage { position: relative; height: clamp(380px, 76vh, 800px); min-width: 0; border: 1px solid var(--line);
+           border-radius: 10px; overflow: hidden; background: var(--surface); }
+  @media (max-width: 920px) { .stage { height: clamp(340px, 58vh, 560px); } }
+  .stage canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+  .labels { position: absolute; inset: 0; pointer-events: none; }
+  .lbl { font-family: var(--font-mono); font-weight: 600; font-size: 15px; color: var(--fg);
+         text-shadow: 0 0 3px var(--surface), 0 0 3px var(--surface), 0 0 6px var(--surface); }
+  .hint { position: absolute; left: 12px; bottom: 10px; font-size: 12px; color: var(--muted); pointer-events: none; font-family: var(--font-mono); }
+  .stage .reset { position: absolute; right: 10px; top: 10px; }
+  .legend { position: absolute; left: 12px; top: 10px; display: grid; gap: 2px; font-size: 13px; pointer-events: none; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .sw { width: 12px; height: 12px; border-radius: 3px; flex: none; display: inline-block; }
+
+  .panel { display: grid; gap: 16px; min-width: 0; }
+  .label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.09em; color: var(--muted); font-weight: 600; margin: 0 0 8px; }
+  .tabs { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--surface); }
+  .tabs button { font: inherit; font-size: 14px; font-weight: 500; padding: 9px 6px; border: 0; background: transparent; color: var(--fg); cursor: pointer; }
+  .tabs button + button { border-left: 1px solid var(--line); }
+  .tabs button[aria-pressed="true"] { background: var(--accent); color: var(--surface); }
+  .tabs.small button { font-size: 13px; padding: 7px 4px; }
+  button:focus-visible, input:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .btn { font: inherit; font-size: 13px; padding: 6px 10px; border-radius: 6px; cursor: pointer; border: 1px solid var(--line); background: var(--surface); color: var(--fg); }
+  .btn:hover { border-color: var(--accent); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+
+  .slider { display: grid; gap: 2px; }
+  .slider-row { display: flex; justify-content: space-between; align-items: baseline; font-size: 14px; gap: 8px; }
+  .slider-row output { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-weight: 600; }
+  input[type="range"] { width: 100%; accent-color: var(--accent); }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .toggles { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 14px; }
+  .toggles label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
+  .toggles input { accent-color: var(--accent); }
+
+  .nums { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 3px 12px; font-size: 14px; border-top: 1px solid var(--line); padding-top: 12px; }
+  .nums .v { font-family: var(--font-mono); font-variant-numeric: tabular-nums; text-align: right; font-weight: 600; }
+  .nums .k { color: var(--muted); }
+  .ratio { font-family: var(--font-mono); font-size: 22px; font-weight: 600; color: var(--pyr); font-variant-numeric: tabular-nums; }
+  .chart { width: 100%; height: 170px; display: block; }
+
+  .text { font-size: 14.5px; display: grid; gap: 8px; }
+  .text p { margin: 0; }
+  .text h2 { font-size: 16px; margin: 0; font-weight: 600; }
+  .f { font-family: var(--font-mono); font-size: 14px; background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+       border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line)); border-radius: 6px; padding: 7px 10px; display: block; overflow-x: auto; white-space: nowrap; }
+  .text ul { margin: 0; padding-left: 20px; }
+  .text li + li { margin-top: 4px; }
+  .t1 { color: var(--c1); font-weight: 600; } .t2 { color: var(--c2); font-weight: 600; } .t3 { color: var(--c3); font-weight: 600; }
+  .err { color: var(--circ); font-size: 13px; padding: 16px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a class="back" href="../../">← Все примеры</a>
+    <h1>Объём конуса</h1>
+    <span class="formula-top">V = ⅓ · S<sub>осн</sub> · h = ⅓ · πR² · h</span>
+  </header>
+
+  <div class="main">
+    <div class="stage" id="stage">
+      <div class="labels" id="labels"></div>
+      <div class="legend" id="legend"></div>
+      <button class="btn reset" id="resetCam" type="button">Сбросить вид</button>
+      <div class="hint">тяните — вращать · колесо/щипок — масштаб</div>
+    </div>
+
+    <aside class="panel">
+      <div class="tabs" role="group" aria-label="Раздел">
+        <button type="button" id="tabCone" aria-pressed="true">Конус и пирамиды</button>
+        <button type="button" id="tabProof" aria-pressed="false">Доказательство</button>
+      </div>
+
+      <div class="tabs small" id="steps" role="group" aria-label="Шаги доказательства" hidden>
+        <button type="button" data-step="1" aria-pressed="true">1. Кавальери</button>
+        <button type="button" data-step="2" aria-pressed="false">2. Треугольная</button>
+        <button type="button" data-step="3" aria-pressed="false">3. n-угольная</button>
+      </div>
+
+      <section class="slider" id="nBox">
+        <div class="slider-row"><label for="n">Число углов основания n</label><output id="nOut"></output></div>
+        <input type="range" id="n" min="3" max="100" value="6">
+        <div class="row" id="playRow" style="margin-top:6px">
+          <button class="btn primary" id="play" type="button">Анимация: n → ∞</button>
+          <button class="btn" type="button" data-n="3">3</button>
+          <button class="btn" type="button" data-n="4">4</button>
+          <button class="btn" type="button" data-n="6">6</button>
+          <button class="btn" type="button" data-n="12">12</button>
+          <button class="btn" type="button" data-n="48">48</button>
+        </div>
+      </section>
+
+      <!-- Вкладка «Конус» -->
+      <section id="coneBox" class="panel">
+        <div class="row">
+          <div class="slider" style="flex:1 1 140px"><div class="slider-row"><label for="R">Радиус R</label><output id="ROut"></output></div><input type="range" id="R" min="0.5" max="1.6" step="0.05" value="1.2"></div>
+          <div class="slider" style="flex:1 1 140px"><div class="slider-row"><label for="H">Высота h</label><output id="HOut"></output></div><input type="range" id="H" min="0.6" max="2.8" step="0.05" value="2.2"></div>
+        </div>
+        <div class="toggles">
+          <label><input type="checkbox" id="tCone" checked> Конус</label>
+          <label><input type="checkbox" id="tIn" checked> Вписанная пирамида</label>
+          <label><input type="checkbox" id="tOut"> Описанная пирамида</label>
+        </div>
+        <div>
+          <p class="label">Объём вписанной пирамиды от объёма конуса</p>
+          <div class="ratio" id="ratio"></div>
+        </div>
+        <div class="nums" id="coneNums"></div>
+        <div>
+          <p class="label">Отношение к объёму конуса при росте n</p>
+          <canvas class="chart" id="chart" aria-label="График отношения объёмов пирамид к объёму конуса"></canvas>
+        </div>
+        <div class="text">
+          <h2>Почему V = ⅓πR²h</h2>
+          <p>Конус зажат между вписанной и описанной правильными n-угольными пирамидами с той же высотой h. Для любой пирамиды V = ⅓·S·h (это доказано во вкладке «Доказательство»), поэтому</p>
+          <span class="f">⅓·S<sub>вп</sub>·h  ≤  V<sub>конуса</sub>  ≤  ⅓·S<sub>оп</sub>·h</span>
+          <span class="f">S<sub>вп</sub> = ½·n·R²·sin(2π/n),   S<sub>оп</sub> = n·R²·tg(π/n)</span>
+          <p>При n → ∞ обе площади стремятся к площади круга πR²: многоугольники всё плотнее прилегают к окружности. Левая и правая части неравенства сходятся к одному числу, значит</p>
+          <span class="f">V<sub>конуса</sub> = ⅓·πR²·h</span>
+        </div>
+      </section>
+
+      <!-- Вкладка «Доказательство» -->
+      <section id="proofBox" class="panel" hidden>
+        <div class="slider" id="sliceBox">
+          <div class="slider-row"><label for="slice">Высота сечения x</label><output id="sliceOut"></output></div>
+          <input type="range" id="slice" min="0" max="100" value="40">
+        </div>
+        <div class="slider" id="explodeBox" hidden>
+          <div class="slider-row"><label for="explode">Раздвинуть части</label><output id="explodeOut"></output></div>
+          <input type="range" id="explode" min="0" max="100" value="45">
+        </div>
+        <div class="nums" id="proofNums"></div>
+        <div class="text" id="proofText"></div>
+      </section>
+    </aside>
+  </div>
+</div>
+
+<template id="step1">
+  <h2>Шаг 1. Одинаковые основания и высоты — одинаковые объёмы</h2>
+  <p>Слева правильная n-угольная пирамида, справа треугольная, к тому же наклонная. Площади оснований равны, высоты тоже.</p>
+  <p>Разрежем обе пирамиды плоскостью на высоте x. Сечение подобно основанию с коэффициентом (h − x)/h, поэтому его площадь</p>
+  <span class="f">S(x) = S · ((h − x) / h)²</span>
+  <p>Она зависит только от S и h, а не от формы основания и не от того, где стоит вершина. На любой высоте сечения двух пирамид равны по площади. По принципу Кавальери у таких тел равные объёмы.</p>
+  <p>Значит, объём пирамиды определяется только площадью основания и высотой. Остаётся найти его для одной удобной пирамиды.</p>
+</template>
+<template id="step2">
+  <h2>Шаг 2. Треугольная пирамида: V = ⅓·S·h</h2>
+  <p>Достроим пирамиду до треугольной призмы ABCA₁B₁C₁ с тем же основанием S и высотой h. Призма разрезается на три пирамиды:</p>
+  <ul>
+    <li><span class="t1">T₁ = C₁ABC</span>: вершина C₁, основание ABC;</li>
+    <li><span class="t2">T₂ = C₁ABB₁</span>: вершина C₁, основание ABB₁;</li>
+    <li><span class="t3">T₃ = C₁AA₁B₁</span>: вершина C₁, основание AA₁B₁.</li>
+  </ul>
+  <p><span class="t1">T₁</span> и <span class="t3">T₃</span>: на T₃ можно смотреть как на пирамиду с вершиной A и основанием A₁B₁C₁. Основания ABC и A₁B₁C₁ равны, высоты обеих равны h. По шагу 1 объёмы равны.</p>
+  <p><span class="t2">T₂</span> и <span class="t3">T₃</span>: общая вершина C₁, а основания ABB₁ и AA₁B₁ — две половины параллелограмма AA₁B₁B, разрезанного диагональю AB₁. Площади равны, высота общая. Объёмы равны.</p>
+  <span class="f">V₁ = V₂ = V₃ = V<sub>призмы</sub> / 3 = ⅓·S·h</span>
+</template>
+<template id="step3">
+  <h2>Шаг 3. n-угольная пирамида: V = ⅓·S·h</h2>
+  <p>Соединим центр основания с его вершинами. Многоугольник распадается на n треугольников с площадями S₁, S₂, …, Sₙ, а пирамида — на n треугольных пирамид с той же вершиной и той же высотой h.</p>
+  <p>По шагу 2 объём каждой равен ⅓·Sᵢ·h. Складываем:</p>
+  <span class="f">V = ⅓S₁h + ⅓S₂h + … + ⅓Sₙh</span>
+  <span class="f">  = ⅓·(S₁ + S₂ + … + Sₙ)·h = ⅓·S·h</span>
+  <p>Правильность многоугольника не важна: любой многоугольник можно разрезать диагоналями на треугольники, и сумма работает так же.</p>
+  <p>Теперь вернитесь во вкладку «Конус и пирамиды»: конус — предел таких пирамид при n → ∞.</p>
+</template>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { CSS2DRenderer, CSS2DObject } from "three/addons/renderers/CSS2DRenderer.js";
+
+const $ = id => document.getElementById(id);
+const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+// ---------- Сцена ----------
+const stage = $("stage");
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+stage.prepend(renderer.domElement);
+const labelRenderer = new CSS2DRenderer({ element: $("labels") });
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(36, 1, 0.1, 100);
+camera.position.set(4, 3.4, 5.6);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true; controls.minDistance = 2; controls.maxDistance = 30;
+scene.add(new THREE.HemisphereLight(0xffffff, 0x8a93a3, 1.6));
+const sun = new THREE.DirectionalLight(0xffffff, 1.4); sun.position.set(4, 8, 6); scene.add(sun);
+const fill = new THREE.DirectionalLight(0xffffff, 0.4); fill.position.set(-5, 2, -4); scene.add(fill);
+const world = new THREE.Group(); scene.add(world);
+
+let C = {};
+function readTheme() {
+  const cs = getComputedStyle(document.documentElement);
+  const g = n => new THREE.Color(cs.getPropertyValue(n).trim());
+  C = { cone: g("--cone"), pyr: g("--pyr"), circ: g("--circ"), c1: g("--c1"), c2: g("--c2"), c3: g("--c3"), slice: g("--slice"), edge: g("--edge"),
+        css: n => cs.getPropertyValue(n).trim() };
+  rebuild();
+}
+
+// ---------- Состояние ----------
+const state = { tab: "cone", step: 1, n: 6, R: 1.2, h: 2.2, cone: true, inn: true, out: false, slice: 0.4, explode: 0.45 };
+
+// ---------- Построители ----------
+const v3 = (x, y, z) => new THREE.Vector3(x, y, z);
+function polyPts(n, r, y = 0, phase = 0) {
+  return [...Array(n)].map((_, i) => { const a = phase + 2 * Math.PI * i / n; return v3(r * Math.cos(a), y, -r * Math.sin(a)); });
+}
+function trisGeo(tris) {
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.Float32BufferAttribute(tris.flatMap(p => p.toArray()), 3));
+  g.computeVertexNormals();
+  return g;
+}
+function pyramidTris(base, apex) {
+  const t = [];
+  for (let i = 1; i < base.length - 1; i++) t.push(base[0], base[i], base[i + 1]);
+  base.forEach((p, i) => t.push(p, base[(i + 1) % base.length], apex));
+  return t;
+}
+const solidMat = (color, opacity = 0.9) => new THREE.MeshStandardMaterial({
+  color, roughness: 0.6, flatShading: true, side: THREE.DoubleSide,
+  transparent: opacity < 1, opacity, depthWrite: opacity >= 0.7, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1,
+});
+function edgesOf(segs, color, opacity = 0.9, dashed = false) {
+  const g = new THREE.BufferGeometry().setFromPoints(segs.flat());
+  const m = dashed ? new THREE.LineDashedMaterial({ color, dashSize: 0.08, gapSize: 0.06, transparent: true, opacity })
+                   : new THREE.LineBasicMaterial({ color, transparent: true, opacity });
+  const l = new THREE.LineSegments(g, m);
+  if (dashed) l.computeLineDistances();
+  return l;
+}
+function pyramidEdges(base, apex) {
+  const s = [];
+  base.forEach((p, i) => { s.push([p, base[(i + 1) % base.length]]); s.push([p, apex]); });
+  return s;
+}
+function label(text, p, parent, cls = "lbl", center = [0.5, 0.5]) {
+  const d = document.createElement("div"); d.className = cls; d.textContent = text;
+  const o = new CSS2DObject(d); o.position.copy(p); o.center.set(...center); parent.add(o); return o;
+}
+function clear(g) {
+  g.traverse(o => { if (o.isCSS2DObject) o.element.remove(); });
+  while (g.children.length) {
+    const c = g.children.pop();
+    c.traverse(o => { o.geometry?.dispose(); o.material?.dispose?.(); });
+  }
+}
+
+const S_in = (n, R) => 0.5 * n * R * R * Math.sin(2 * Math.PI / n);
+const S_out = (n, R) => n * R * R * Math.tan(Math.PI / n);
+
+// Конус + вписанная/описанная пирамиды
+function buildCone() {
+  const { n, R, h } = state;
+  const apex = v3(0, h, 0);
+  if (state.inn) {
+    const base = polyPts(n, R);
+    world.add(new THREE.Mesh(trisGeo(pyramidTris(base, apex)), solidMat(C.pyr, 0.92)));
+    world.add(edgesOf(pyramidEdges(base, apex), C.edge, n > 40 ? 0.35 : 0.85));
+  }
+  if (state.out) {
+    const Ro = R / Math.cos(Math.PI / n);
+    const base = polyPts(n, Ro, 0, Math.PI / n);
+    world.add(new THREE.Mesh(trisGeo(pyramidTris(base, apex)), solidMat(C.circ, 0.16)));
+    world.add(edgesOf(pyramidEdges(base, apex), C.circ, n > 40 ? 0.4 : 0.9, true));
+  }
+  if (state.cone) {
+    const cg = new THREE.ConeGeometry(R, h, 160, 1, true);
+    const cm = new THREE.MeshStandardMaterial({ color: C.cone, transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide, roughness: 0.4 });
+    const cone = new THREE.Mesh(cg, cm); cone.position.y = h / 2; world.add(cone);
+    const circle = polyPts(160, R);
+    world.add(edgesOf(circle.map((p, i) => [p, circle[(i + 1) % circle.length]]), C.edge, 0.9));
+    [Math.PI * 0.35, Math.PI * 1.35].forEach(a => world.add(edgesOf([[v3(R * Math.cos(a), 0, -R * Math.sin(a)), apex]], C.edge, 0.35)));
+  }
+  // высота и радиус
+  const O = v3(0, 0, 0);
+  world.add(edgesOf([[O, apex]], C.edge, 0.9, true));
+  world.add(edgesOf([[O, v3(R, 0, 0)]], C.edge, 0.9, true));
+  label("h", v3(0, h / 2, 0), world, "lbl", [-0.6, 0.5]);
+  label("R", v3(R / 2, 0, 0), world, "lbl", [0.5, -0.2]);
+}
+
+// Шаг 1: две пирамиды с равными основаниями и высотами + секущая плоскость
+function buildCavalieri() {
+  const { n, R, h } = state;
+  const S = S_in(n, R);
+  const left = v3(-1.7, 0, 0), right = v3(1.7, 0, 0);
+  const baseA = polyPts(n, R).map(p => p.add(left));
+  const apexA = v3(0, h, 0).add(left);
+  const side = Math.sqrt(4 * S / Math.sqrt(3));
+  const rt = side / Math.sqrt(3);
+  const baseB = polyPts(3, rt, 0, Math.PI / 2).map(p => p.add(right));
+  const apexB = v3(0.55, h, 0.25).add(right);              // наклонная пирамида: вершина не над центром
+  [[baseA, apexA, C.c1], [baseB, apexB, C.c2]].forEach(([b, a, col]) => {
+    world.add(new THREE.Mesh(trisGeo(pyramidTris(b, a)), solidMat(col, 0.38)));
+    world.add(edgesOf(pyramidEdges(b, a), C.edge, 0.85));
+  });
+  const x = state.slice * h, k = (h - x) / h;
+  // сечение: основание, сжатое к проекции вершины в k раз и поднятое на высоту x
+  const sectionOf = (b, a) => { const foot = v3(a.x, 0, a.z); return b.map(p => foot.clone().add(p.clone().sub(foot).multiplyScalar(k)).setY(x)); };
+  [[baseA, apexA], [baseB, apexB]].forEach(([b, a]) => {
+    const s = sectionOf(b, a);
+    if (k > 0.001) {
+      const t = []; for (let i = 1; i < s.length - 1; i++) t.push(s[0], s[i], s[i + 1]);
+      const m = solidMat(C.slice, 0.95); m.depthWrite = true;
+      world.add(new THREE.Mesh(trisGeo(t), m));
+      world.add(edgesOf(s.map((p, i) => [p, s[(i + 1) % s.length]]), C.slice, 1));
+    }
+  });
+  const plane = new THREE.Mesh(new THREE.PlaneGeometry(7.4, 3.6),
+    new THREE.MeshBasicMaterial({ color: C.slice, transparent: true, opacity: 0.08, depthWrite: false, side: THREE.DoubleSide }));
+  plane.rotation.x = -Math.PI / 2; plane.position.y = x; world.add(plane);
+  world.add(edgesOf([[v3(-3.7, x, -1.8), v3(3.7, x, -1.8)], [v3(3.7, x, -1.8), v3(3.7, x, 1.8)], [v3(3.7, x, 1.8), v3(-3.7, x, 1.8)], [v3(-3.7, x, 1.8), v3(-3.7, x, -1.8)]], C.slice, 0.6));
+  const Sx = S * k * k;
+  $("proofNums").innerHTML = `
+    <span class="k">Площадь основания (обе)</span><span class="v">${fmt(S)}</span>
+    <span class="k">Высота h (обе)</span><span class="v">${fmt(h)}</span>
+    <span class="k">x / h</span><span class="v">${fmt(state.slice)}</span>
+    <span class="k"><span class="sw" style="background:var(--c1)"></span> сечение n-угольной</span><span class="v">${fmt(Sx)}</span>
+    <span class="k"><span class="sw" style="background:var(--c2)"></span> сечение треугольной</span><span class="v">${fmt(Sx)}</span>`;
+}
+
+// Шаг 2: призма = три пирамиды
+function buildPrism() {
+  const h = Math.min(state.h, 2.2);
+  const A = v3(-1.1, 0, 0.75), B = v3(1.1, 0, 0.75), Cc = v3(0, 0, -1.0);
+  const up = v3(0, h, 0);
+  const A1 = A.clone().add(up), B1 = B.clone().add(up), C1 = Cc.clone().add(up);
+  const tets = [[C1, A, B, Cc], [C1, A, B, B1], [C1, A, A1, B1]];
+  const OFFS = [v3(-1.7, -0.1, -0.4), v3(1.5, 0, 0.5), v3(-0.3, 1.5, 0.2)];   // куда разводим T₁, T₂, T₃
+  const cols = [C.c1, C.c2, C.c3];
+  const cen = [A, B, Cc, A1, B1, C1].reduce((s, p) => s.add(p), v3(0, 0, 0)).divideScalar(6);
+  const e = state.explode;
+  tets.forEach((t, i) => {
+    const off = OFFS[i].clone().multiplyScalar(e * 1.3);
+    const g = new THREE.Group(); g.position.copy(off);
+    const [a, b, c, d] = t;
+    g.add(new THREE.Mesh(trisGeo([a, b, c, a, b, d, a, c, d, b, c, d]), solidMat(cols[i], 0.88)));
+    g.add(edgesOf([[a, b], [a, c], [a, d], [b, c], [b, d], [c, d]], C.edge, 0.9));
+    world.add(g);
+  });
+  if (e < 0.08) {
+    [["A", A], ["B", B], ["C", Cc], ["A₁", A1], ["B₁", B1], ["C₁", C1]].forEach(([t, p]) =>
+      label(t, p.clone().sub(cen).multiplyScalar(0.18).add(p), world));
+  } else {
+    world.add(edgesOf([[A, B], [B, Cc], [Cc, A], [A1, B1], [B1, C1], [C1, A1], [A, A1], [B, B1], [Cc, C1]], C.edge, 0.25, true));
+  }
+  const S = 0.5 * Math.abs((B.x - A.x) * (Cc.z - A.z) - (Cc.x - A.x) * (B.z - A.z));
+  $("proofNums").innerHTML = `
+    <span class="k">V призмы = S·h</span><span class="v">${fmt(S * h)}</span>
+    <span class="k"><span class="sw" style="background:var(--c1)"></span> V(T₁)</span><span class="v">${fmt(S * h / 3)}</span>
+    <span class="k"><span class="sw" style="background:var(--c2)"></span> V(T₂)</span><span class="v">${fmt(S * h / 3)}</span>
+    <span class="k"><span class="sw" style="background:var(--c3)"></span> V(T₃)</span><span class="v">${fmt(S * h / 3)}</span>`;
+}
+
+// Шаг 3: n-угольная пирамида = n треугольных
+function buildFan() {
+  const { n, R, h } = state;
+  const base = polyPts(n, R);
+  const apex = v3(0, h, 0), O = v3(0, 0, 0);
+  const cols = [C.c1, C.c2, C.c3];
+  const e = state.explode;
+  base.forEach((p, i) => {
+    const q = base[(i + 1) % n];
+    const dir = p.clone().add(q).setY(0).normalize();
+    const g = new THREE.Group(); g.position.copy(dir.multiplyScalar(e * 1.4));
+    const col = cols[(n % 2 === 1 && i === n - 1) ? 2 : i % 2];
+    g.add(new THREE.Mesh(trisGeo([O, p, q, O, p, apex, p, q, apex, q, O, apex]), solidMat(col, 0.9)));
+    g.add(edgesOf([[O, p], [p, q], [q, O], [O, apex], [p, apex], [q, apex]], C.edge, n > 40 ? 0.35 : 0.85));
+    world.add(g);
+  });
+  const S = S_in(n, R), Si = S / n;
+  $("proofNums").innerHTML = `
+    <span class="k">Треугольных пирамид</span><span class="v">${n}</span>
+    <span class="k">Площадь одного треугольника Sᵢ</span><span class="v">${fmt(Si)}</span>
+    <span class="k">V одной = ⅓·Sᵢ·h</span><span class="v">${fmt(Si * h / 3)}</span>
+    <span class="k">Сумма n объёмов</span><span class="v">${fmt(n * Si * h / 3)}</span>
+    <span class="k">⅓·S·h для всей пирамиды</span><span class="v">${fmt(S * h / 3)}</span>`;
+}
+
+// ---------- Числа и график ----------
+function fmt(x, d = 3) { return Number(x.toFixed(d)).toLocaleString("ru-RU", { maximumFractionDigits: d }); }
+function coneNumbers() {
+  const { n, R, h } = state;
+  const Si = S_in(n, R), So = S_out(n, R), Sc = Math.PI * R * R;
+  $("ratio").textContent = fmt(100 * Si / Sc, 2) + " %";
+  $("coneNums").innerHTML = `
+    <span class="k"><span class="sw" style="background:var(--pyr)"></span> S вписанного n-угольника</span><span class="v">${fmt(Si)}</span>
+    <span class="k">πR² (круг)</span><span class="v">${fmt(Sc)}</span>
+    <span class="k"><span class="sw" style="background:var(--circ)"></span> S описанного n-угольника</span><span class="v">${fmt(So)}</span>
+    <span class="k">V вписанной пирамиды = ⅓·S<sub>вп</sub>·h</span><span class="v">${fmt(Si * h / 3)}</span>
+    <span class="k">V конуса = ⅓·πR²·h</span><span class="v">${fmt(Sc * h / 3)}</span>
+    <span class="k">V описанной пирамиды = ⅓·S<sub>оп</sub>·h</span><span class="v">${fmt(So * h / 3)}</span>`;
+  drawChart();
+}
+function drawChart() {
+  const cv = $("chart"), w = cv.clientWidth, hh = cv.clientHeight; if (!w) return;
+  const dpr = Math.min(devicePixelRatio, 2);
+  cv.width = w * dpr; cv.height = hh * dpr;
+  const g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, hh);
+  const padL = 34, padR = 10, padT = 8, padB = 22;
+  const nMin = 3, nMax = 100, yMin = 0.4, yMax = 1.7;
+  const X = n => padL + (Math.log(n) - Math.log(nMin)) / (Math.log(nMax) - Math.log(nMin)) * (w - padL - padR);
+  const Y = y => padT + (yMax - y) / (yMax - yMin) * (hh - padT - padB);
+  g.font = "11px 'JetBrains Mono', monospace"; g.fillStyle = C.css("--muted"); g.strokeStyle = C.css("--line"); g.lineWidth = 1;
+  [0.5, 1, 1.5].forEach(y => { g.beginPath(); g.moveTo(padL, Y(y)); g.lineTo(w - padR, Y(y)); g.stroke(); g.textAlign = "right"; g.textBaseline = "middle"; g.fillText(String(y).replace(".", ","), padL - 5, Y(y)); });
+  [3, 6, 12, 25, 50, 100].forEach(n => { g.textAlign = "center"; g.textBaseline = "top"; g.fillText(n, X(n), hh - padB + 5); });
+  g.strokeStyle = C.css("--cone"); g.setLineDash([5, 4]); g.lineWidth = 1.5;
+  g.beginPath(); g.moveTo(padL, Y(1)); g.lineTo(w - padR, Y(1)); g.stroke(); g.setLineDash([]);
+  const line = (f, col) => { g.strokeStyle = col; g.lineWidth = 2; g.beginPath(); for (let n = 3; n <= 100; n += 0.25) { const y = f(n); n === 3 ? g.moveTo(X(n), Y(y)) : g.lineTo(X(n), Y(y)); } g.stroke(); };
+  line(n => S_in(n, 1) / Math.PI, C.css("--pyr"));
+  line(n => S_out(n, 1) / Math.PI, C.css("--circ"));
+  const n = state.n;
+  [[S_in(n, 1) / Math.PI, "--pyr"], [S_out(n, 1) / Math.PI, "--circ"]].forEach(([y, col]) => {
+    g.fillStyle = C.css(col); g.beginPath(); g.arc(X(n), Y(y), 4, 0, 7); g.fill();
+  });
+  g.fillStyle = C.css("--muted"); g.textAlign = "left"; g.textBaseline = "bottom"; g.fillText("конус = 1", X(40), Y(1) - 3);
+}
+
+// ---------- Перестроение ----------
+function rebuild() {
+  if (!C.edge) return;
+  clear(world);
+  const view = state.tab === "cone" ? "cone" : ["", "cav", "prism", "fan"][state.step];
+  if (view === "cone") buildCone();
+  else if (view === "cav") buildCavalieri();
+  else if (view === "prism") buildPrism();
+  else buildFan();
+  renderLegend(view);
+  if (state.tab === "cone") coneNumbers();
+}
+function renderLegend(view) {
+  const item = (v, t) => `<span><i class="sw" style="background:var(${v})"></i>${t}</span>`;
+  $("legend").innerHTML = view === "cone"
+    ? (state.cone ? item("--cone", "конус") : "") + (state.inn ? item("--pyr", "вписанная пирамида") : "") + (state.out ? item("--circ", "описанная пирамида") : "")
+    : view === "cav" ? item("--slice", "сечения на высоте x")
+    : view === "prism" ? item("--c1", "T₁") + item("--c2", "T₂") + item("--c3", "T₃")
+    : "";
+}
+
+// ---------- Управление ----------
+function setN(n) {
+  state.n = Math.max(3, Math.min(100, Math.round(n)));
+  $("n").value = state.n; $("nOut").textContent = state.n;
+  rebuild();
+}
+$("n").addEventListener("input", e => { stopPlay(); setN(+e.target.value); });
+document.querySelectorAll("[data-n]").forEach(b => b.addEventListener("click", () => { stopPlay(); setN(+b.dataset.n); }));
+let timer = null;
+function stopPlay() { if (timer) { clearInterval(timer); timer = null; $("play").textContent = "Анимация: n → ∞"; } }
+$("play").addEventListener("click", () => {
+  if (timer) { stopPlay(); return; }
+  if (state.n >= 100) setN(3);
+  $("play").textContent = "Стоп";
+  timer = setInterval(() => {
+    const n = state.n, next = n < 12 ? n + 1 : n < 32 ? n + 2 : n + 6;
+    if (next > 100) { setN(100); stopPlay(); } else setN(next);
+  }, reduceMotion ? 120 : 380);
+});
+$("R").addEventListener("input", e => { state.R = +e.target.value; $("ROut").textContent = fmt(state.R, 2); rebuild(); });
+$("H").addEventListener("input", e => { state.h = +e.target.value; $("HOut").textContent = fmt(state.h, 2); rebuild(); });
+$("tCone").addEventListener("change", e => { state.cone = e.target.checked; rebuild(); });
+$("tIn").addEventListener("change", e => { state.inn = e.target.checked; rebuild(); });
+$("tOut").addEventListener("change", e => { state.out = e.target.checked; rebuild(); });
+$("slice").addEventListener("input", e => { state.slice = e.target.value / 100; $("sliceOut").textContent = "x = " + fmt(state.slice * state.h, 2); rebuild(); });
+$("explode").addEventListener("input", e => { state.explode = e.target.value / 100; $("explodeOut").textContent = e.target.value + "%"; rebuild(); });
+
+const CAMS = {
+  cone: [v3(4, 3.4, 5.6), v3(0, 1.0, 0)],
+  cav: [v3(1.2, 4.2, 8.4), v3(0, 0.9, 0)],
+  prism: [v3(-2.4, 4.6, 10.2), v3(0.1, 1.6, 0)],
+  fan: [v3(4, 4.2, 5.6), v3(0, 0.9, 0)],
+};
+let camAnim = null;
+function fly(view) { camAnim = CAMS[view]; }
+controls.addEventListener("start", () => { camAnim = null; });
+$("resetCam").addEventListener("click", () => fly(state.tab === "cone" ? "cone" : ["", "cav", "prism", "fan"][state.step]));
+
+function setTab(t) {
+  state.tab = t;
+  $("tabCone").setAttribute("aria-pressed", String(t === "cone"));
+  $("tabProof").setAttribute("aria-pressed", String(t === "proof"));
+  $("coneBox").hidden = t !== "cone";
+  $("proofBox").hidden = t !== "proof";
+  $("steps").hidden = t !== "proof";
+  if (t === "cone") { $("nBox").hidden = false; $("playRow").hidden = false; fly("cone"); rebuild(); }
+  else setStep(state.step);
+}
+function setStep(s) {
+  stopPlay();
+  state.step = s;
+  document.querySelectorAll("#steps button").forEach(b => b.setAttribute("aria-pressed", String(+b.dataset.step === s)));
+  $("proofText").innerHTML = $("step" + s).innerHTML;
+  $("sliceBox").hidden = s !== 1;
+  $("explodeBox").hidden = s === 1;
+  $("nBox").hidden = s === 2;
+  $("playRow").hidden = true;
+  fly(["", "cav", "prism", "fan"][s]);
+  rebuild();
+}
+$("tabCone").addEventListener("click", () => setTab("cone"));
+$("tabProof").addEventListener("click", () => setTab("proof"));
+document.querySelectorAll("#steps button").forEach(b => b.addEventListener("click", () => setStep(+b.dataset.step)));
+
+// ---------- Размер и цикл ----------
+function resize() {
+  const w = stage.clientWidth, h = stage.clientHeight;
+  renderer.setSize(w, h, false); labelRenderer.setSize(w, h);
+  camera.aspect = w / h; camera.fov = w / h < 0.9 ? 52 : 36; camera.updateProjectionMatrix();
+  drawChart();
+}
+new ResizeObserver(resize).observe(stage);
+const clock = new THREE.Clock();
+function tick() {
+  const dt = Math.min(clock.getDelta(), 0.05);
+  if (camAnim) {
+    const k = reduceMotion ? 1 : 1 - Math.exp(-dt * 3.5);
+    camera.position.lerp(camAnim[0], k); controls.target.lerp(camAnim[1], k);
+    if (camera.position.distanceTo(camAnim[0]) < 0.01) camAnim = null;
+  }
+  controls.update();
+  renderer.render(scene, camera);
+  labelRenderer.render(scene, camera);
+  requestAnimationFrame(tick);
+}
+
+$("nOut").textContent = state.n; $("ROut").textContent = fmt(state.R, 2); $("HOut").textContent = fmt(state.h, 2);
+$("sliceOut").textContent = "x = " + fmt(state.slice * state.h, 2); $("explodeOut").textContent = Math.round(state.explode * 100) + "%";
+controls.target.copy(CAMS.cone[1]);
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", readTheme);
+new MutationObserver(readTheme).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+readTheme();
+resize();
+tick();
+</script>
+<script>
+  setTimeout(() => {
+    const st = document.getElementById("stage");
+    if (st && !st.querySelector("canvas")) {
+      const d = document.createElement("div"); d.className = "err";
+      d.textContent = "Не удалось загрузить 3D-библиотеку. Проверьте подключение к интернету и обновите страницу.";
+      st.appendChild(d);
+    }
+  }, 6000);
+</script>
+</body>
+</html>
