@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Парабола и коэффициенты</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Golos+Text:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: graph paper on the left, control panel on the right; stacks on phones */
+:root{
+  --bg:#f6f8f7; --paper:#ffffff; --grid:#d9e6ee; --grid2:#b9cfdc; --ink:#1d2a33; --muted:#5d6f7a; --line:#c9d6de;
+  --a:#d1495b; --b:#2c7da0; --c:#3a8c4a; --curve:#1d2a33; --ghost:#9aa9b2; --chip:#eef3f5;
+  --display:"Unbounded","Golos Text",system-ui,sans-serif;
+  --body:"Golos Text",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#12181c; --paper:#172026; --grid:#22303a; --grid2:#2f4250; --ink:#e4ecef; --muted:#93a5af; --line:#2c3a44;
+  --a:#ff7a8a; --b:#5fb7dd; --c:#73c983; --curve:#f1f5f6; --ghost:#5d6f7a; --chip:#1f2b33; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#12181c; --paper:#172026; --grid:#22303a; --grid2:#2f4250; --ink:#e4ecef; --muted:#93a5af; --line:#2c3a44;
+  --a:#ff7a8a; --b:#5fb7dd; --c:#73c983; --curve:#f1f5f6; --ghost:#5d6f7a; --chip:#1f2b33; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.5;padding-inline:16px;padding-block:20px 32px}
+.wrap{max-width:1200px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+header{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:8px 24px}
+h1{font-family:var(--display);font-weight:700;font-size:clamp(20px,3vw,28px);margin:0;text-wrap:balance}
+.formula{font-family:var(--mono);font-size:clamp(18px,2.6vw,26px);font-weight:600;white-space:nowrap}
+.formula .ca{color:var(--a)} .formula .cb{color:var(--b)} .formula .cc{color:var(--c)}
+.main{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:16px;align-items:start}
+@media (max-width:860px){.main{grid-template-columns:minmax(0,1fr)}}
+.board{background:var(--paper);border:1px solid var(--line);border-radius:10px;overflow:hidden;position:relative}
+canvas{display:block;width:100%;aspect-ratio:1/1;max-width:100%;touch-action:none}
+.toggles{display:flex;flex-wrap:wrap;gap:6px;padding:10px 12px;border-top:1px solid var(--line)}
+.tg{display:inline-flex;align-items:center;gap:6px;font-size:13px;padding:4px 10px;border-radius:999px;background:var(--chip);cursor:pointer;user-select:none}
+.tg input{margin:0;accent-color:var(--ink)}
+.panel{display:flex;flex-direction:column;gap:12px;min-width:0}
+.box{background:var(--paper);border:1px solid var(--line);border-radius:10px;padding:14px}
+.slider{display:grid;grid-template-columns:28px minmax(0,1fr) 64px;align-items:center;gap:10px}
+.slider + .slider{margin-top:12px}
+.slider label{font-family:var(--mono);font-weight:600;font-size:20px}
+.slider input[type=range]{width:100%}
+.slider output{font-family:var(--mono);font-variant-numeric:tabular-nums;text-align:right;font-size:16px}
+#sa{accent-color:var(--a)} #sb{accent-color:var(--b)} #sc{accent-color:var(--c)}
+.la{color:var(--a)} .lb{color:var(--b)} .lc{color:var(--c)}
+.presets{display:flex;flex-wrap:wrap;gap:6px;margin-top:14px}
+button{font:inherit;font-size:13px;border:1px solid var(--line);background:var(--chip);color:var(--ink);padding:5px 10px;border-radius:6px;cursor:pointer}
+button:hover{border-color:var(--muted)}
+button:focus-visible,input:focus-visible{outline:2px solid var(--b);outline-offset:2px}
+button.primary{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.facts{display:flex;flex-direction:column;gap:10px}
+.fact{display:grid;grid-template-columns:10px minmax(0,1fr);gap:10px}
+.fact .dot{width:10px;border-radius:3px}
+.fact h3{margin:0;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.fact p{margin:2px 0 0;font-size:14px}
+.fact b{font-family:var(--mono);font-weight:600}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.warn{color:var(--a);font-weight:600}
+h2{font-family:var(--display);font-weight:500;font-size:15px;margin:0 0 10px}
+.quiz .row{display:grid;grid-template-columns:28px repeat(3,minmax(0,1fr));gap:6px;align-items:center;margin-top:6px}
+.quiz .row span{font-family:var(--mono);font-weight:600;font-size:18px}
+.quiz .row button.sel{background:var(--ink);color:var(--paper)}
+.quiz .res{margin-top:10px;font-size:14px;min-height:1.5em}
+.hint{font-size:13px;color:var(--muted);margin:0}
+.rules{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+@media (max-width:860px){.rules{grid-template-columns:minmax(0,1fr)}}
+.rules .box h2{margin-bottom:6px}
+.rules ul{margin:0;padding-left:18px;font-size:14px}
+.rules li + li{margin-top:4px}
+.hiddenvals .slider output,.hiddenvals .formula{filter:blur(7px)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+html,body{margin:0}
+.back{flex-basis:100%;font-size:13px;color:var(--muted);text-decoration:none}
+.back:hover{color:var(--b)}
+</style>
+</head>
+<body>
+
+<div class="wrap" id="app">
+  <header>
+    <a class="back" href="../../">← Все примеры</a>
+    <h1>Как коэффициенты меняют параболу</h1>
+    <div class="formula" id="formula"></div>
+  </header>
+
+  <div class="main">
+    <div class="board">
+      <canvas id="cv" aria-label="График функции y = ax² + bx + c"></canvas>
+      <div class="toggles">
+        <label class="tg"><input type="checkbox" id="tAxis" checked> Ось симметрии</label>
+        <label class="tg"><input type="checkbox" id="tVertex" checked> Вершина</label>
+        <label class="tg"><input type="checkbox" id="tRoots" checked> Корни</label>
+        <label class="tg"><input type="checkbox" id="tTan"> Наклон в точке (0; c)</label>
+        <label class="tg"><input type="checkbox" id="tBase"> y = x² для сравнения</label>
+        <button id="pin">Зафиксировать график</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="box">
+        <div class="slider"><label for="sa" class="la">a</label><input type="range" id="sa" min="-4" max="4" step="0.1" value="1"><output id="oa" class="la"></output></div>
+        <div class="slider"><label for="sb" class="lb">b</label><input type="range" id="sb" min="-10" max="10" step="0.5" value="-2"><output id="ob" class="lb"></output></div>
+        <div class="slider"><label for="sc" class="lc">c</label><input type="range" id="sc" min="-10" max="10" step="0.5" value="-3"><output id="oc" class="lc"></output></div>
+        <div class="presets">
+          <button data-p="1,0,0">y = x²</button>
+          <button data-p="-1,0,0">y = −x²</button>
+          <button data-p="0.25,0,0">y = ¼x²</button>
+          <button data-p="3,0,0">y = 3x²</button>
+          <button data-p="1,-4,4">D = 0</button>
+          <button data-p="1,0,3">D &lt; 0</button>
+        </div>
+      </div>
+
+      <div class="box facts" id="facts"></div>
+
+      <div class="box quiz" id="quiz">
+        <h2>Угадай знаки</h2>
+        <p class="hint" id="qhint">Появится случайная парабола, значения скроются. Определи знаки a, b и c по графику.</p>
+        <div id="qbody" hidden>
+          <div class="row" data-k="a"><span class="la">a</span><button data-s="-1">&lt; 0</button><button data-s="0">= 0</button><button data-s="1">&gt; 0</button></div>
+          <div class="row" data-k="b"><span class="lb">b</span><button data-s="-1">&lt; 0</button><button data-s="0">= 0</button><button data-s="1">&gt; 0</button></div>
+          <div class="row" data-k="c"><span class="lc">c</span><button data-s="-1">&lt; 0</button><button data-s="0">= 0</button><button data-s="1">&gt; 0</button></div>
+          <div class="res" id="qres"></div>
+        </div>
+        <div class="presets">
+          <button class="primary" id="qstart">Новая задача</button>
+          <button id="qcheck" hidden>Проверить</button>
+          <button id="qshow" hidden>Показать ответ</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="rules">
+    <div class="box"><h2 class="la">Коэффициент a</h2><ul>
+      <li>a &gt; 0: ветви вверх, у параболы есть наименьшее значение.</li>
+      <li>a &lt; 0: ветви вниз, есть наибольшее значение.</li>
+      <li>Чем больше |a|, тем уже парабола. При |a| &lt; 1 она шире, чем y = x².</li>
+      <li>При a = 0 функция уже не квадратичная: график прямая.</li>
+    </ul></div>
+    <div class="box"><h2 class="lb">Коэффициент b</h2><ul>
+      <li>Абсцисса вершины x₀ = −b / (2a).</li>
+      <li>a и b одного знака: вершина левее оси Oy.</li>
+      <li>a и b разных знаков: вершина правее оси Oy.</li>
+      <li>b = 0: вершина на оси Oy, парабола симметрична относительно неё.</li>
+      <li>b равно угловому коэффициенту касательной в точке (0; c).</li>
+    </ul></div>
+    <div class="box"><h2 class="lc">Коэффициент c</h2><ul>
+      <li>Парабола пересекает ось Oy в точке (0; c).</li>
+      <li>Изменение c сдвигает график вверх или вниз, форма не меняется.</li>
+      <li>c = 0: парабола проходит через начало координат.</li>
+      <li>c / a — произведение корней (теорема Виета): при c/a &lt; 0 корни разных знаков.</li>
+    </ul></div>
+  </div>
+</div>
+
+<script>
+(function(){
+const $=id=>document.getElementById(id);
+const cv=$('cv'), ctx=cv.getContext('2d');
+const S={a:1,b:-2,c:-3}; let pinned=null; let quiz=null;
+const R=10; // view: x,y in [-R,R]
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+function fmt(v){const r=Math.round(v*100)/100;return (r<0?'−':'')+Math.abs(r).toString().replace('.',',');}
+function signed(v){return (v<0?' − ':' + ')+fmt(Math.abs(v));}
+
+function formulaHTML(a,b,c){
+  let s='y = ';
+  const A=a===1?'':a===-1?'−':fmt(a);
+  s+= a===0? '' : `<span class="ca">${A}</span>x²`;
+  if(b!==0){ const bb=Math.abs(b)===1?'':fmt(Math.abs(b)); s+= (a===0? (b<0?'−':'') : (b<0?' − ':' + '))+`<span class="cb">${bb}</span>x`; }
+  if(c!==0 || (a===0&&b===0)){ s+= (a===0&&b===0)? `<span class="cc">${fmt(c)}</span>` : (c<0?' − ':' + ')+`<span class="cc">${fmt(Math.abs(c))}</span>`; }
+  return s;
+}
+
+function size(){
+  const r=cv.getBoundingClientRect(), d=window.devicePixelRatio||1;
+  cv.width=Math.round(r.width*d); cv.height=Math.round(r.width*d);
+  ctx.setTransform(d,0,0,d,0,0); draw();
+}
+function W(){return cv.getBoundingClientRect().width;}
+function X(x){return (x+R)/(2*R)*W();}
+function Y(y){return (R-y)/(2*R)*W();}
+
+function curve(f,color,width,dash){
+  const w=W(); ctx.beginPath(); ctx.strokeStyle=color; ctx.lineWidth=width; ctx.setLineDash(dash||[]);
+  let started=false;
+  for(let px=0;px<=w;px+=1){
+    const x=px/w*2*R-R, y=f(x);
+    if(y>R*3||y<-R*3){started=false;continue;}
+    const py=Y(y); if(!started){ctx.moveTo(px,py);started=true;} else ctx.lineTo(px,py);
+  }
+  ctx.stroke(); ctx.setLineDash([]);
+}
+function dot(x,y,color,r,ring){ctx.beginPath();ctx.arc(X(x),Y(y),r,0,7);ctx.fillStyle=ring?css('--paper'):color;ctx.fill();ctx.lineWidth=2.5;ctx.strokeStyle=color;ctx.stroke();}
+function label(t,x,y,color,dx,dy,align){
+  ctx.font='600 13px "JetBrains Mono", monospace'; ctx.textAlign=align||'left'; ctx.textBaseline='middle';
+  let px=X(x)+dx, py=Y(y)+dy; const w=W(); const tw=ctx.measureText(t).width;
+  if(ctx.textAlign==='left') px=Math.min(Math.max(px,4),w-tw-4); else if(ctx.textAlign==='right') px=Math.max(Math.min(px,w-4),tw+4);
+  py=Math.min(Math.max(py,10),w-10);
+  ctx.lineWidth=4; ctx.strokeStyle=css('--paper'); ctx.strokeText(t,px,py); ctx.fillStyle=color; ctx.fillText(t,px,py);
+}
+
+function draw(){
+  const w=W(); if(!w) return;
+  const {a,b,c}=S; const hide=!!quiz;
+  ctx.fillStyle=css('--paper'); ctx.fillRect(0,0,w,w);
+  // grid
+  for(let i=-R;i<=R;i+=0.5){ ctx.beginPath(); ctx.strokeStyle=Number.isInteger(i)?css('--grid2'):css('--grid'); ctx.lineWidth=Number.isInteger(i)?1:0.6;
+    ctx.moveTo(X(i),0);ctx.lineTo(X(i),w);ctx.moveTo(0,Y(i));ctx.lineTo(w,Y(i));ctx.stroke(); }
+  // axes
+  ctx.strokeStyle=css('--ink'); ctx.lineWidth=1.5; ctx.beginPath(); ctx.moveTo(0,Y(0));ctx.lineTo(w,Y(0));ctx.moveTo(X(0),0);ctx.lineTo(X(0),w);ctx.stroke();
+  ctx.fillStyle=css('--ink'); ctx.beginPath();ctx.moveTo(w,Y(0));ctx.lineTo(w-9,Y(0)-4);ctx.lineTo(w-9,Y(0)+4);ctx.fill();
+  ctx.beginPath();ctx.moveTo(X(0),0);ctx.lineTo(X(0)-4,9);ctx.lineTo(X(0)+4,9);ctx.fill();
+  ctx.font='12px "JetBrains Mono", monospace'; ctx.fillStyle=css('--muted'); ctx.textAlign='center'; ctx.textBaseline='top';
+  for(let i=-R+2;i<R;i+=2){ if(i===0)continue; ctx.fillText(i,X(i),Y(0)+5); }
+  ctx.textAlign='right'; ctx.textBaseline='middle';
+  for(let i=-R+2;i<R;i+=2){ if(i===0)continue; ctx.fillText(i,X(0)-6,Y(i)); }
+  ctx.fillStyle=css('--ink'); ctx.font='600 14px "JetBrains Mono", monospace';
+  ctx.textAlign='right'; ctx.fillText('x',w-6,Y(0)-14); ctx.textAlign='left'; ctx.fillText('y',X(0)+10,10);
+  ctx.textAlign='right'; ctx.textBaseline='top'; ctx.font='12px "JetBrains Mono", monospace'; ctx.fillStyle=css('--muted'); ctx.fillText('0',X(0)-5,Y(0)+5);
+
+  if($('tBase').checked) curve(x=>x*x,css('--ghost'),2,[6,5]);
+  if(pinned) curve(x=>pinned.a*x*x+pinned.b*x+pinned.c,css('--ghost'),2.5);
+
+  const f=x=>a*x*x+b*x+c;
+  const show=k=>$(k).checked && !hide;
+  if(a!==0){
+    const x0=-b/(2*a), y0=f(x0);
+    if(show('tAxis')){ ctx.strokeStyle=css('--b'); ctx.lineWidth=1.5; ctx.setLineDash([7,6]); ctx.beginPath(); ctx.moveTo(X(x0),0); ctx.lineTo(X(x0),w); ctx.stroke(); ctx.setLineDash([]);
+      label('x = '+fmt(x0),x0,R,css('--b'),6,14); }
+  }
+  if(show('tTan')){ const g=x=>b*x+c; ctx.strokeStyle=css('--b'); ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(X(-2.5),Y(g(-2.5))); ctx.lineTo(X(2.5),Y(g(2.5))); ctx.stroke(); }
+
+  curve(f,css('--curve'),3.2);
+
+  // y-intercept
+  dot(0,c,css('--c'),5.5);
+  if(!hide) label('(0; '+fmt(c)+')',0,c,css('--c'),10,c>=0?-12:12);
+  if(a!==0){
+    const x0=-b/(2*a), y0=f(x0);
+    if(show('tVertex')){ dot(x0,y0,css('--a'),6,true); label('('+fmt(x0)+'; '+fmt(y0)+')',x0,y0,css('--a'),0,a>0?20:-20,'center'); }
+    const D=b*b-4*a*c;
+    if(show('tRoots') && D>=0){ const s=Math.sqrt(D); const r=D===0?[x0]:[(-b-s)/(2*a),(-b+s)/(2*a)];
+      r.forEach(x=>{ if(Math.abs(x)<R){ dot(x,0,css('--ink'),4.5); label(fmt(x),x,0,css('--ink'),0,a>0?-14:14,'center'); } }); }
+  }
+}
+
+function facts(){
+  const {a,b,c}=S, el=$('facts');
+  if(quiz){ el.innerHTML='<p class="hint">Подсказки скрыты, пока идёт задача.</p>'; return; }
+  if(a===0){ el.innerHTML=`<div class="fact"><span class="dot" style="background:var(--a)"></span><div><h3>a = 0</h3><p class="warn">Функция не квадратичная. График y = ${fmt(b)}x ${signed(c)} — прямая.</p></div></div>`; return; }
+  const x0=-b/(2*a), y0=a*x0*x0+b*x0+c, D=b*b-4*a*c;
+  const k=Math.abs(a);
+  const width = k===1?'такая же, как у y = x²' : k>1?'уже, чем y = x² (в '+fmt(k)+' раза сжата к оси Oy)':'шире, чем y = x²';
+  const side = b===0?'на оси Oy (b = 0)': (a*b>0?'левее оси Oy: a и b одного знака':'правее оси Oy: a и b разных знаков');
+  let roots;
+  if(D>0){const s=Math.sqrt(D);roots=`два корня: x₁ = ${fmt((-b-s)/(2*a))}, x₂ = ${fmt((-b+s)/(2*a))}`;}
+  else if(D===0) roots=`один корень x = ${fmt(x0)}, парабола касается оси Ox`;
+  else roots='корней нет, парабола не пересекает ось Ox';
+  const ext = a>0?`наименьшее значение y = ${fmt(y0)}`:`наибольшее значение y = ${fmt(y0)}`;
+  el.innerHTML=`
+  <div class="fact"><span class="dot" style="background:var(--a)"></span><div><h3>Ветви · a = ${fmt(a)}</h3><p>${a>0?'Направлены <b>вверх</b>':'Направлены <b>вниз</b>'}, ${ext}. Форма ${width}.</p></div></div>
+  <div class="fact"><span class="dot" style="background:var(--b)"></span><div><h3>Вершина · b = ${fmt(b)}</h3><p>x₀ = −b/(2a) = <b>${fmt(x0)}</b>, y₀ = <b>${fmt(y0)}</b>. Вершина ${side}.</p></div></div>
+  <div class="fact"><span class="dot" style="background:var(--c)"></span><div><h3>Ось Oy · c = ${fmt(c)}</h3><p>Пересечение в точке <b>(0; ${fmt(c)})</b>${c===0?', график проходит через начало координат':''}.</p></div></div>
+  <div class="fact"><span class="dot" style="background:var(--ink)"></span><div><h3>Дискриминант · D = ${fmt(D)}</h3><p>${roots}.</p></div></div>`;
+}
+
+function update(){
+  ['a','b','c'].forEach(k=>{S[k]=parseFloat($('s'+k).value); $('o'+k).textContent=fmt(S[k]);});
+  $('formula').innerHTML=formulaHTML(S.a,S.b,S.c);
+  facts(); draw();
+}
+function set(a,b,c){$('sa').value=a;$('sb').value=b;$('sc').value=c;update();}
+
+['sa','sb','sc'].forEach(id=>$(id).addEventListener('input',()=>{ if(quiz) endQuiz(); update(); }));
+['tAxis','tVertex','tRoots','tTan','tBase'].forEach(id=>$(id).addEventListener('change',draw));
+document.querySelectorAll('[data-p]').forEach(bt=>bt.addEventListener('click',()=>{ if(quiz) endQuiz(); const p=bt.dataset.p.split(',').map(Number); set(...p); }));
+$('pin').addEventListener('click',()=>{ if(pinned){pinned=null;$('pin').textContent='Зафиксировать график';} else {pinned={...S};$('pin').textContent='Убрать фиксированный';} draw(); });
+
+// quiz
+const sgn=v=>v>0?1:v<0?-1:0;
+function rnd(arr){return arr[Math.floor(Math.random()*arr.length)];}
+function startQuiz(){
+  let a,b,c,y0;
+  do{ a=rnd([-2,-1.5,-1,-0.5,0.5,1,1.5,2]); b=rnd([-6,-4,-3,-2,0,2,3,4,6]); c=rnd([-6,-4,-2,0,2,4,6]); y0=c-b*b/(4*a); }
+  while(Math.abs(b/(2*a))>7 || Math.abs(y0)>8);
+  quiz={a,b,c,ans:{}};
+  $('app').classList.add('hiddenvals');
+  set(a,b,c);
+  $('qbody').hidden=false; $('qcheck').hidden=false; $('qshow').hidden=false; $('qhint').hidden=true; $('qres').textContent='';
+  document.querySelectorAll('.quiz .row button').forEach(x=>x.classList.remove('sel'));
+}
+function endQuiz(){ quiz=null; $('app').classList.remove('hiddenvals'); $('qcheck').hidden=true; $('qshow').hidden=true; $('qbody').hidden=true; $('qhint').hidden=false; facts(); draw(); }
+document.querySelectorAll('.quiz .row').forEach(row=>row.querySelectorAll('button').forEach(bt=>bt.addEventListener('click',()=>{
+  if(!quiz) return; row.querySelectorAll('button').forEach(x=>x.classList.remove('sel')); bt.classList.add('sel'); quiz.ans[row.dataset.k]=+bt.dataset.s;
+})));
+$('qstart').addEventListener('click',startQuiz);
+$('qcheck').addEventListener('click',()=>{
+  if(!quiz) return; const keys=['a','b','c'];
+  if(keys.some(k=>quiz.ans[k]===undefined)){ $('qres').textContent='Выбери знак для каждого коэффициента.'; return; }
+  const wrong=keys.filter(k=>quiz.ans[k]!==sgn(quiz[k]));
+  $('qres').innerHTML= wrong.length? `Неверно: <b>${wrong.join(', ')}</b>. Попробуй ещё раз.` : 'Всё верно!';
+});
+$('qshow').addEventListener('click',()=>{ const {a,b,c}=quiz; endQuiz(); set(a,b,c); });
+
+window.addEventListener('resize',size);
+if(window.matchMedia) matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change',draw);
+new MutationObserver(draw).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+document.fonts && document.fonts.ready.then(draw);
+update(); size();
+})();
+</script>
+
+</body>
+</html>
