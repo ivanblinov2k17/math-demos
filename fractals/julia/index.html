@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Множество Жюлиа</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600&family=JetBrains+Mono:wght@400;600&family=Unbounded:wght@500;700&display=swap">
+<link rel="stylesheet" href="../fractal.css">
+<style>
+  .minimap { position: relative; border-radius: 8px; overflow: hidden; border: 1px solid var(--line); background: var(--canvas); }
+  .minimap canvas { display: block; width: 100%; height: 190px; cursor: crosshair; touch-action: none; }
+  .status { font-size: 14px; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface); }
+  .status b { font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="crumbs"><a href="../../">← Все примеры</a><a href="../">Фракталы</a></div>
+    <h1>Множество Жюлиа</h1>
+    <span class="formula-top">z ← z<sup id="powTop">2</sup> + c,  c = <span id="cTop"></span></span>
+  </header>
+
+  <div class="main">
+    <div class="view">
+      <canvas id="cv" aria-label="Множество Жюлиа"></canvas>
+      <div class="tools"><button class="btn" id="reset" type="button">Весь вид</button></div>
+      <div class="overlay"><span id="viewInfo"></span></div>
+    </div>
+
+    <aside class="panel">
+      <div class="group">
+        <p class="label">Выберите c на карте Мандельброта</p>
+        <div class="minimap"><canvas id="map" aria-label="Карта множества Мандельброта для выбора c"></canvas></div>
+        <div class="status" id="status" aria-live="polite"></div>
+      </div>
+
+      <div class="group">
+        <div class="slider"><div class="slider-row"><label for="cr">Re c</label><output id="crOut"></output></div>
+          <input type="range" id="cr" min="-2" max="1" step="0.0005" value="-0.8"></div>
+        <div class="slider"><div class="slider-row"><label for="ci">Im c</label><output id="ciOut"></output></div>
+          <input type="range" id="ci" min="-1.5" max="1.5" step="0.0005" value="0.156"></div>
+        <div class="row" id="presets"></div>
+        <div class="row"><button class="btn primary" id="orbit" type="button">Анимация: c по окружности</button></div>
+      </div>
+
+      <div class="group">
+        <p class="label">Формула и раскраска</p>
+        <div class="slider-row"><span>Степень p в z<sup>p</sup> + c</span><output id="powOut">2</output></div>
+        <div class="row" id="pows"></div>
+        <div class="slider"><div class="slider-row"><label for="iter">Число итераций</label><output id="iterOut"></output></div>
+          <input type="range" id="iter" min="50" max="2000" step="50" value="300"></div>
+        <div class="row"><label for="palette">Палитра</label><select id="palette"></select></div>
+        <div class="slider"><div class="slider-row"><label for="density">Частота полос</label><output id="densityOut"></output></div>
+          <input type="range" id="density" min="0.05" max="1.5" step="0.01" value="0.45"></div>
+      </div>
+    </aside>
+  </div>
+
+  <section class="about">
+    <div class="card">
+      <h2>Что это</h2>
+      <p>Теперь число c зафиксировано, а меняется начальная точка. Для каждой точки z₀ плоскости повторяем:</p>
+      <span class="f">z₁ = z₀² + c,  z₂ = z₁² + c,  …</span>
+      <p>Точки, чьи последовательности не улетают в бесконечность, образуют заполненное множество Жюлиа. На картинке оно тёмное, а его граница и есть множество Жюлиа.</p>
+      <p>Каждому c соответствует своё множество. Главное правило: если c лежит в множестве Мандельброта, множество Жюлиа связно, то есть состоит из одного куска. Если c снаружи, оно рассыпается в «пыль» из бесконечного числа точек.</p>
+    </div>
+    <div class="card">
+      <h2>История</h2>
+      <ul class="timeline">
+        <li><b>1915</b><span>Гастон Жюлиа, 22 года, тяжело ранен на фронте Первой мировой и теряет нос. Всю жизнь он носит кожаную повязку на лице. Часть работы он пишет в госпитале.</span></li>
+        <li><b>1918</b><span>Выходит его «Мемуар об итерации рациональных функций» почти на 200 страниц. Французская академия наук присуждает ему Большую премию. Почти одновременно те же вопросы изучает Пьер Фату.</span></li>
+        <li><b>1920-е–1970-е</b><span>Без компьютеров увидеть эти множества нельзя, и о них почти забывают.</span></li>
+        <li><b>1980-е</b><span>Бенуа Мандельброт, учившийся в Политехнической школе, где преподавал Жюлиа, строит множества на компьютере. Теория Жюлиа и Фату оживает.</span></li>
+      </ul>
+    </div>
+    <div class="card">
+      <h2>Знаменитые c</h2>
+      <div class="facts">
+        <span>c = 0: окружность |z| = 1</span><span class="v">гладкая</span>
+        <span>c = −2: отрезок [−2; 2]</span><span class="v">прямая</span>
+        <span>c = −0,123 + 0,745i: «кролик Дуади»</span><span class="v">связно</span>
+        <span>c = i: «дендрит», дерево без площади</span><span class="v">связно</span>
+        <span>c = 0,36 + 0,1i: «пыль Фату»</span><span class="v">не связно</span>
+      </div>
+      <p style="margin-top:10px">Кролик назван в честь Адриена Дуади, который вместе с Джоном Хаббардом построил большую часть современной теории этих множеств.</p>
+    </div>
+  </section>
+
+  <nav class="more" data-current="julia" aria-label="Другие фракталы"></nav>
+</div>
+
+<script src="../common.js"></script>
+<script src="../escape.js"></script>
+<script>
+(function () {
+  const $ = id => document.getElementById(id), F = Fractal;
+  let view;
+  try {
+    view = EscapeFractal.create({
+      canvas: $("cv"), julia: true,
+      onView: s => { $("viewInfo").textContent = `центр ${F.fmt(s.cx, 4)} ${s.cy < 0 ? "−" : "+"} ${F.fmt(Math.abs(s.cy), 4)}i · увеличение ×${F.fmt(1.5 / s.halfH, 0)}`; },
+    });
+  } catch (e) {
+    $("cv").replaceWith(Object.assign(document.createElement("div"), { className: "err", textContent: "Браузер не поддерживает WebGL, поэтому картинку не построить." }));
+    return;
+  }
+  const s = view.state;
+  s.density = 0.45; s.palette = "Лёд";
+
+  // ---------- Карта Мандельброта ----------
+  const map = $("map"), mg = map.getContext("2d");
+  const MAP = { x0: -2.15, x1: 0.75, cy: 0 };   // видимая часть по Re; по Im — по пропорции холста
+  let mapImg = null;
+  function mapBounds() { const h = (MAP.x1 - MAP.x0) * map.height / map.width / 2; return { y0: MAP.cy - h, y1: MAP.cy + h }; }
+  function renderMap() {
+    const w = map.width, h = map.height, { y0, y1 } = mapBounds();
+    const img = mg.createImageData(w, h);
+    for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
+      const cr = MAP.x0 + (MAP.x1 - MAP.x0) * i / w, ci = y1 - (y1 - y0) * j / h;
+      let x = 0, y = 0, n = 0;
+      for (; n < 80; n++) {
+        let wx = x, wy = y;
+        for (let k = 1; k < s.pow; k++) { const t = wx * x - wy * y; wy = wx * y + wy * x; wx = t; }
+        x = wx + cr; y = wy + ci; if (x * x + y * y > 4) break;
+      }
+      const o = (j * w + i) * 4;
+      if (n === 80) { img.data[o] = 30; img.data[o + 1] = 40; img.data[o + 2] = 58; }
+      else { const v = Math.min(255, 18 + n * 9); img.data[o] = v * 0.35; img.data[o + 1] = v * 0.55; img.data[o + 2] = v; }
+      img.data[o + 3] = 255;
+    }
+    mapImg = img; drawMap();
+  }
+  function drawMap() {
+    if (!mapImg) return;
+    mg.putImageData(mapImg, 0, 0);
+    const { y0, y1 } = mapBounds();
+    const px = (s.c[0] - MAP.x0) / (MAP.x1 - MAP.x0) * map.width, py = (y1 - s.c[1]) / (y1 - y0) * map.height;
+    const r = 6 * (window.devicePixelRatio || 1);
+    mg.lineWidth = 2 * (window.devicePixelRatio || 1); mg.strokeStyle = "#ffcf4d";
+    mg.beginPath(); mg.arc(px, py, r, 0, 7); mg.stroke();
+    mg.beginPath(); mg.moveTo(px - 2 * r, py); mg.lineTo(px - r, py); mg.moveTo(px + r, py); mg.lineTo(px + 2 * r, py);
+    mg.moveTo(px, py - 2 * r); mg.lineTo(px, py - r); mg.moveTo(px, py + r); mg.lineTo(px, py + 2 * r); mg.stroke();
+  }
+  F.fitCanvas(map, () => renderMap(), 1.5);
+  function pickFromMap(e) {
+    const r = map.getBoundingClientRect(), { y0, y1 } = mapBounds();
+    setC(MAP.x0 + (MAP.x1 - MAP.x0) * (e.clientX - r.left) / r.width, y1 - (y1 - y0) * (e.clientY - r.top) / r.height);
+  }
+  map.addEventListener("pointerdown", e => { stopOrbit(); map.setPointerCapture(e.pointerId); pickFromMap(e); });
+  map.addEventListener("pointermove", e => { if (map.hasPointerCapture(e.pointerId)) pickFromMap(e); });
+
+  // ---------- Параметр c ----------
+  const sign = v => (v < 0 ? "−" : "+");
+  const cText = (a, b) => `${F.fmt(a, 4)} ${sign(b)} ${F.fmt(Math.abs(b), 4)}i`;
+  function setC(a, b, fromSlider) {
+    s.c = [a, b];
+    if (!fromSlider) { $("cr").value = a; $("ci").value = b; }
+    $("crOut").textContent = F.fmt(a, 4); $("ciOut").textContent = F.fmt(b, 4);
+    $("cTop").textContent = cText(a, b);
+    const inM = EscapeFractal.inMandelbrot(a, b, 600, s.pow);
+    $("status").innerHTML = inM
+      ? `c <b>в множестве Мандельброта</b>, поэтому множество Жюлиа <b>связно</b>: один цельный кусок.`
+      : `c <b>вне множества Мандельброта</b>, поэтому множество Жюлиа <b>рассыпается в пыль</b>.`;
+    view.request(); drawMap();
+  }
+  $("cr").addEventListener("input", () => { stopOrbit(); setC(+$("cr").value, s.c[1], true); });
+  $("ci").addEventListener("input", () => { stopOrbit(); setC(s.c[0], +$("ci").value, true); });
+
+  const PRESETS = [["Круг", 0, 0], ["Кролик Дуади", -0.1226, 0.7449], ["Дендрит", 0, 1], ["Сан-Марко", -0.75, 0],
+                   ["Спирали", -0.8, 0.156], ["Отрезок", -2, 0], ["Пыль Фату", 0.36, 0.1]];
+  PRESETS.forEach(([n, a, b]) => {
+    const btn = Object.assign(document.createElement("button"), { className: "btn", type: "button", textContent: n });
+    btn.addEventListener("click", () => { stopOrbit(); if (s.pow !== 2) setPow(2); view.setView(0, 0, 1.5); setC(a, b); });
+    $("presets").appendChild(btn);
+  });
+
+  // c = 0,7885·e^{ia} — знаменитая анимация: c обходит множество Мандельброта по окружности
+  let orbitT = null, ang = Math.atan2(s.c[1], s.c[0]);
+  function stopOrbit() { if (orbitT) { cancelAnimationFrame(orbitT); orbitT = null; $("orbit").textContent = "Анимация: c по окружности"; } }
+  $("orbit").addEventListener("click", () => {
+    if (orbitT) { stopOrbit(); return; }
+    $("orbit").textContent = "Стоп";
+    let last = performance.now();
+    const step = now => {
+      ang += (now - last) / 1000 * 0.25; last = now;
+      setC(0.7885 * Math.cos(ang), 0.7885 * Math.sin(ang));
+      orbitT = requestAnimationFrame(step);
+    };
+    orbitT = requestAnimationFrame(step);
+  });
+
+  function setPow(p) {
+    s.pow = p; $("powOut").textContent = p; $("powTop").textContent = p;
+    $("pows").querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(+b.textContent === p)));
+    MAP.x0 = p === 2 ? -2.15 : -1.6; MAP.x1 = p === 2 ? 0.75 : 1.6;
+    renderMap(); setC(s.c[0], s.c[1]);
+  }
+  [2, 3, 4, 5].forEach(p => {
+    const b = Object.assign(document.createElement("button"), { className: "btn", type: "button", textContent: p });
+    b.setAttribute("aria-pressed", String(p === 2));
+    b.addEventListener("click", () => setPow(p));
+    $("pows").appendChild(b);
+  });
+
+  Object.keys(F.PALETTES).forEach(n => $("palette").add(new Option(n, n)));
+  $("palette").value = s.palette;
+  $("palette").addEventListener("change", e => { s.palette = e.target.value; view.request(); });
+  F.bindSlider("iter", v => { s.iter = v; view.request(); });
+  F.bindSlider("density", v => { s.density = v; view.request(); }, v => F.fmt(v, 2));
+  $("reset").addEventListener("click", () => view.setView(0, 0, 1.5));
+
+  // ?c=re,im — приходит со страницы Мандельброта
+  const q = new URLSearchParams(location.search).get("c");
+  const qc = q ? q.split(",").map(Number) : null;
+  if (qc && qc.length === 2 && qc.every(Number.isFinite)) setC(qc[0], qc[1]); else setC(-0.8, 0.156);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Дерево Пифагора</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600&family=JetBrains+Mono:wght@400;600&family=Unbounded:wght@500;700&display=swap">
+<link rel="stylesheet" href="../fractal.css">
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="crumbs"><a href="../../">← Все примеры</a><a href="../">Фракталы</a></div>
+    <h1>Дерево Пифагора</h1>
+    <span class="formula-top">a² + b² = c²</span>
+  </header>
+
+  <div class="main">
+    <div class="view">
+      <canvas id="cv" aria-label="Дерево Пифагора"></canvas>
+      <div class="overlay"><span id="info"></span></div>
+    </div>
+
+    <aside class="panel">
+      <div class="group">
+        <div class="slider"><div class="slider-row"><label for="depth">Ярусов n</label><output id="depthOut"></output></div>
+          <input type="range" id="depth" min="0" max="14" step="1" value="10"></div>
+        <div class="slider"><div class="slider-row"><label for="ang">Угол треугольника α</label><output id="angOut"></output></div>
+          <input type="range" id="ang" min="5" max="85" step="0.5" value="45"></div>
+        <div class="row" id="presets"></div>
+      </div>
+      <div class="group">
+        <div class="row"><label for="paint">Раскраска</label><select id="paint"><option>Дерево</option><option>По ярусам</option><option>Осень</option><option>Контур</option></select></div>
+        <div class="toggles">
+          <label><input type="checkbox" id="tri"> Показать треугольники</label>
+          <label><input type="checkbox" id="wind"> Ветер</label>
+        </div>
+      </div>
+      <div class="stats" id="stats"></div>
+    </aside>
+  </div>
+
+  <section class="about">
+    <div class="card">
+      <h2>Что это</h2>
+      <p>На верхней стороне квадрата строим прямоугольный треугольник, а на его катетах — два новых квадрата. На каждом из них повторяем то же самое. Квадраты становятся ветками, и вырастает дерево.</p>
+      <p>Угол α задаёт форму треугольника. Если сторона квадрата-ствола равна 1, катеты равны cos α и sin α. Поэтому по теореме Пифагора</p>
+      <span class="f">cos²α + sin²α = 1</span>
+      <p>Два квадрата-ветки вместе всегда равны по площади квадрату под ними. Значит, у каждого яруса общая площадь такая же, как у ствола, сколько бы веток там ни было.</p>
+      <p>При α = 45° дерево симметрично. При других углах ветви закручиваются в спираль, будто дерево растёт на ветру.</p>
+    </div>
+    <div class="card">
+      <h2>История</h2>
+      <ul class="timeline">
+        <li><b>~300 до н. э.</b><span>В «Началах» Евклида теорема Пифагора доказана с помощью квадратов, построенных на сторонах прямоугольного треугольника. Дерево — это тот же рисунок, повторённый бесконечно.</span></li>
+        <li><b>1942</b><span>Нидерландский учитель математики Альберт Босман впервые рисует такое дерево.</span></li>
+        <li><b>1980-е</b><span>С появлением компьютерной графики дерево становится классическим примером фрактала, построенного повторением одного шага.</span></li>
+      </ul>
+    </div>
+    <div class="card">
+      <h2>Числа и факты</h2>
+      <div class="facts">
+        <span>Квадратов в дереве из n ярусов</span><span class="v">2ⁿ⁺¹ − 1</span>
+        <span>Площадь каждого яруса</span><span class="v">= площади ствола</span>
+        <span>При α = 45° всё дерево помещается</span><span class="v">в прямоугольник 6 × 4</span>
+        <span>Сторона квадрата на ярусе k при α = 45°</span><span class="v">(√2/2)ᵏ</span>
+      </div>
+      <p style="margin-top:10px">Размеры прямоугольника даны в длинах стороны ствола. При α = 45° ветки разных ярусов начинают касаться друг друга, а при больших n и сильном наклоне — перекрываться.</p>
+    </div>
+  </section>
+
+  <nav class="more" data-current="pythagoras-tree" aria-label="Другие фракталы"></nav>
+</div>
+
+<script src="../common.js"></script>
+<script>
+(function () {
+  const $ = id => document.getElementById(id), F = Fractal;
+  const cv = $("cv"), g = cv.getContext("2d");
+  const st = { depth: 10, ang: 45, paint: "Дерево", tri: false, wind: false };
+  let W = 0, H = 0, dpr = 1, windT = 0;
+
+  // Квадрат задаём нижней стороной A→B; строим вверх (против часовой)
+  function grow(depth, ang) {
+    const sq = [], tris = [];
+    const ca = Math.cos(ang), sa = Math.sin(ang);
+    const rec = (ax, ay, bx, by, k) => {
+      const vx = -(by - ay), vy = bx - ax;                 // поворот A→B на 90°
+      const dx = ax + vx, dy = ay + vy, cx = bx + vx, cy = by + vy;
+      sq.push([ax, ay, bx, by, cx, cy, dx, dy, k]);
+      if (k === depth) return;
+      // вершина прямого угла E: от D по стороне DC, повёрнутой на α, длиной |DC|·cos α
+      const ux = cx - dx, uy = cy - dy;
+      const ex = dx + (ux * ca - uy * sa) * ca, ey = dy + (ux * sa + uy * ca) * ca;
+      tris.push([dx, dy, cx, cy, ex, ey]);
+      rec(dx, dy, ex, ey, k + 1);
+      rec(ex, ey, cx, cy, k + 1);
+    };
+    rec(-0.5, 0, 0.5, 0, 0);
+    return { sq, tris };
+  }
+
+  const lerp = (a, b, t) => a.map((v, i) => Math.round(v + (b[i] - v) * t));
+  function color(k, n) {
+    const t = n ? k / n : 0;
+    if (st.paint === "Дерево") return t < 0.35 ? lerp([120, 78, 46], [150, 110, 60], t / 0.35) : lerp([110, 160, 70], [120, 220, 120], (t - 0.35) / 0.65);
+    if (st.paint === "Осень") return t < 0.3 ? lerp([110, 70, 45], [140, 95, 55], t / 0.3) : lerp([230, 150, 50], [220, 60, 60], (t - 0.3) / 0.7);
+    if (st.paint === "По ярусам") { const h = (k * 37) % 360; return hsl(h, 70, 60); }
+    return null;
+  }
+  function hsl(h, s, l) {
+    s /= 100; l /= 100; const a = s * Math.min(l, 1 - l);
+    const f = n => { const k = (n + h / 30) % 12; return Math.round(255 * (l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1)))); };
+    return [f(0), f(8), f(4)];
+  }
+
+  function draw() {
+    const ang = (st.ang + (st.wind ? 6 * Math.sin(windT) : 0)) * Math.PI / 180;
+    const { sq, tris } = grow(st.depth, ang);
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+    sq.forEach(s => { for (let i = 0; i < 8; i += 2) { x0 = Math.min(x0, s[i]); x1 = Math.max(x1, s[i]); y0 = Math.min(y0, s[i + 1]); y1 = Math.max(y1, s[i + 1]); } });
+    const pad = 24 * dpr, sc = Math.min((W - 2 * pad) / (x1 - x0), (H - 2 * pad) / (y1 - y0));
+    const ox = W / 2 - (x0 + x1) / 2 * sc, oy = H - pad + y0 * sc;
+    g.setTransform(1, 0, 0, 1, 0, 0); g.fillStyle = "#0d1117"; g.fillRect(0, 0, W, H);
+    g.setTransform(sc, 0, 0, -sc, ox, oy);
+    g.lineJoin = "round";
+    sq.forEach(s => {
+      const c = color(s[8], st.depth);
+      g.beginPath(); g.moveTo(s[0], s[1]); g.lineTo(s[2], s[3]); g.lineTo(s[4], s[5]); g.lineTo(s[6], s[7]); g.closePath();
+      if (c) { g.fillStyle = `rgb(${c})`; g.fill(); g.strokeStyle = "rgba(13,17,23,0.55)"; g.lineWidth = 0.8 * dpr / sc; g.stroke(); }
+      else { g.strokeStyle = "#8fc2ff"; g.lineWidth = 1 * dpr / sc; g.stroke(); }
+    });
+    if (st.tri) {
+      g.fillStyle = "rgba(255,207,77,0.55)";
+      tris.forEach(t => { g.beginPath(); g.moveTo(t[0], t[1]); g.lineTo(t[2], t[3]); g.lineTo(t[4], t[5]); g.closePath(); g.fill(); });
+    }
+    const w = x1 - x0, h = y1 - y0;
+    $("info").textContent = `габариты: ${F.fmt(w, 2)} × ${F.fmt(h, 2)} (сторона ствола = 1)`;
+    const a = st.ang * Math.PI / 180;
+    $("stats").innerHTML = `
+      <span class="k">Квадратов</span><span class="v">${sq.length.toLocaleString("ru-RU")}</span>
+      <span class="k">Левая ветка: сторона cos α</span><span class="v">${F.fmt(Math.cos(a), 4)}</span>
+      <span class="k">Правая ветка: сторона sin α</span><span class="v">${F.fmt(Math.sin(a), 4)}</span>
+      <span class="k">cos²α + sin²α</span><span class="v">${F.fmt(Math.cos(a) ** 2 + Math.sin(a) ** 2, 4)}</span>
+      <span class="k">Площадь всех квадратов</span><span class="v">${st.depth + 1} × ствола</span>`;
+  }
+
+  F.bindSlider("depth", v => { st.depth = v; draw(); });
+  F.bindSlider("ang", v => { st.ang = v; draw(); }, v => F.fmt(v, 1) + "°");
+  $("paint").addEventListener("change", e => { st.paint = e.target.value; draw(); });
+  $("tri").addEventListener("change", e => { st.tri = e.target.checked; draw(); });
+  [["Симметричное", 45], ["Спираль влево", 30], ["Спираль вправо", 60], ["Тонкое", 15]].forEach(([n, a]) => {
+    const b = Object.assign(document.createElement("button"), { className: "btn", type: "button", textContent: n });
+    b.addEventListener("click", () => { st.ang = a; $("ang").value = a; $("angOut").textContent = F.fmt(a, 1) + "°"; draw(); });
+    $("presets").appendChild(b);
+  });
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let raf = null, lastT = 0;
+  $("wind").addEventListener("change", e => {
+    st.wind = e.target.checked;
+    if (st.wind && !reduce) { lastT = performance.now(); const tick = now => { windT += (now - lastT) / 1000 * 1.2; lastT = now; draw(); if (st.wind) raf = requestAnimationFrame(tick); }; raf = requestAnimationFrame(tick); }
+    else { cancelAnimationFrame(raf); windT = 0; draw(); }
+  });
+  F.fitCanvas(cv, (w, h, d) => { dpr = d; W = cv.width; H = cv.height; draw(); });
+})();
+</script>
+</body>
+</html>

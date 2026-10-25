@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Папоротник Барнсли</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600&family=JetBrains+Mono:wght@400;600&family=Unbounded:wght@500;700&display=swap">
+<link rel="stylesheet" href="../fractal.css">
+<style>
+  .ifs-wrap { overflow-x: auto; }
+  table.ifs { border-collapse: collapse; font-family: var(--font-mono); font-size: 13px; width: 100%; min-width: 330px; table-layout: fixed; }
+  table.ifs th { font-weight: 600; color: var(--muted); font-size: 12px; padding: 2px 1px; text-align: center; }
+  table.ifs th:first-child { width: 34px; }
+  table.ifs td { padding: 2px 1px; }
+  table.ifs td:first-child { font-weight: 600; white-space: nowrap; }
+  table.ifs input { width: 100%; padding: 3px 2px; font-size: 12px; text-align: center; -moz-appearance: textfield; appearance: textfield; }
+  table.ifs input::-webkit-outer-spin-button, table.ifs input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .dot { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 4px; vertical-align: 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="crumbs"><a href="../../">← Все примеры</a><a href="../">Фракталы</a></div>
+    <h1>Папоротник Барнсли</h1>
+    <span class="formula-top">(x, y) ← (a·x + b·y + e,  c·x + d·y + f)</span>
+  </header>
+
+  <div class="main">
+    <div class="view">
+      <canvas id="cv" aria-label="Папоротник Барнсли"></canvas>
+      <div class="overlay"><span id="info"></span></div>
+    </div>
+
+    <aside class="panel">
+      <div class="group">
+        <p class="label">Готовые растения</p>
+        <div class="row" id="presets"></div>
+      </div>
+      <div class="group">
+        <div class="slider"><div class="slider-row"><label for="bend">Изгиб стебля</label><output id="bendOut"></output></div>
+          <input type="range" id="bend" min="-8" max="8" step="0.1" value="2.7"></div>
+        <div class="slider"><div class="slider-row"><label for="dense">Густота листьев</label><output id="denseOut"></output></div>
+          <input type="range" id="dense" min="0.7" max="0.93" step="0.005" value="0.851"></div>
+        <p class="hint">Оба ползунка меняют преобразование f₂, которое отвечает за «весь папоротник, чуть меньше и чуть повёрнутый».</p>
+      </div>
+      <div class="group">
+        <p class="label">Коэффициенты</p>
+        <div class="ifs-wrap"><table class="ifs" id="ifs"></table></div>
+        <div class="toggles"><label><input type="checkbox" id="byMap" checked> Цвет по преобразованию</label></div>
+      </div>
+      <div class="stats" id="stats"></div>
+    </aside>
+  </div>
+
+  <section class="about">
+    <div class="card">
+      <h2>Что это</h2>
+      <p>Папоротник собран из четырёх аффинных преобразований плоскости. Каждое сжимает, поворачивает и сдвигает картинку:</p>
+      <ul>
+        <li><span class="dot" style="background:#e0a050"></span><b>f₁</b> сжимает всё в отрезок — получается стебель;</li>
+        <li><span class="dot" style="background:#62d698"></span><b>f₂</b> — весь папоротник, чуть меньше и чуть повёрнутый: он даёт всё более мелкие листья вверх по стеблю;</li>
+        <li><span class="dot" style="background:#5ea8ff"></span><b>f₃</b> — левый нижний лист;</li>
+        <li><span class="dot" style="background:#ff8fa3"></span><b>f₄</b> — правый нижний лист.</li>
+      </ul>
+      <p>Рисуют его игрой хаоса: начинаем с точки, каждый раз применяем одно из преобразований, выбранное случайно с вероятностью p, и ставим точку. Через сотни тысяч шагов проявляется растение. Весь папоротник описывают 28 чисел.</p>
+    </div>
+    <div class="card">
+      <h2>История</h2>
+      <ul class="timeline">
+        <li><b>1981</b><span>Джон Хатчинсон описывает системы итерированных функций: набор сжимающих преобразований однозначно задаёт фигуру, которая переходит сама в себя.</span></li>
+        <li><b>1985</b><span>Майкл Барнсли доказывает «теорему о коллаже»: чтобы получить нужную форму, достаточно покрыть её уменьшенными копиями самой себя.</span></li>
+        <li><b>1988</b><span>В книге «Fractals Everywhere» Барнсли показывает папоротник, похожий на настоящий асплениум чёрный (Asplenium adiantum-nigrum).</span></li>
+        <li><b>1990-е</b><span>На той же идее строят фрактальное сжатие изображений, а в компьютерной графике рисуют деревья, облака и горы.</span></li>
+      </ul>
+    </div>
+    <div class="card">
+      <h2>Числа и факты</h2>
+      <div class="facts">
+        <span>Преобразований</span><span class="v">4</span>
+        <span>Чисел в описании</span><span class="v">4 × 7 = 28</span>
+        <span>Вероятности</span><span class="v">1 %, 85 %, 7 %, 7 %</span>
+      </div>
+      <p style="margin-top:10px">Вероятность p не меняет форму, а только скорость, с которой части проявляются. Попробуйте поставить всем p = 0,25: картинка будет та же, но рисоваться будет неравномерно. Каждое преобразование должно сжимать, иначе точки улетят.</p>
+    </div>
+  </section>
+
+  <nav class="more" data-current="barnsley-fern" aria-label="Другие фракталы"></nav>
+</div>
+
+<script src="../common.js"></script>
+<script>
+(function () {
+  const $ = id => document.getElementById(id), F = Fractal;
+  const cv = $("cv"), g = cv.getContext("2d");
+  const MAP_COLORS = [[224, 160, 80], [98, 214, 152], [94, 168, 255], [255, 143, 163]];
+  const PRESETS = {
+    "Папоротник Барнсли": [[0, 0, 0, 0.16, 0, 0, 0.01], [0.85, 0.04, -0.04, 0.85, 0, 1.6, 0.85], [0.2, -0.26, 0.23, 0.22, 0, 1.6, 0.07], [-0.15, 0.28, 0.26, 0.24, 0, 0.44, 0.07]],
+    "Циклосорус": [[0, 0, 0, 0.25, 0, -0.4, 0.02], [0.95, 0.005, -0.005, 0.93, -0.002, 0.5, 0.84], [0.035, -0.2, 0.16, 0.04, -0.09, 0.02, 0.07], [-0.04, 0.2, 0.16, 0.04, 0.083, 0.12, 0.07]],
+    "Без листьев": [[0, 0, 0, 0.16, 0, 0, 0.05], [0.85, 0.04, -0.04, 0.85, 0, 1.6, 0.95], [0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0]],
+    "Только левые листья": [[0, 0, 0, 0.16, 0, 0, 0.01], [0.85, 0.04, -0.04, 0.85, 0, 1.6, 0.85], [0.2, -0.26, 0.23, 0.22, 0, 1.6, 0.14], [0, 0, 0, 0, 0, 0, 0]],
+  };
+  let maps = PRESETS["Папоротник Барнсли"].map(r => r.slice());
+  let W = 0, H = 0, cnt, sr, sg, sb, img, total = 0, fit = null, x = 0, y = 0, byMap = true;
+  const CAP = 4e6;
+
+  // Таблица коэффициентов
+  const COLS = ["a", "b", "c", "d", "e", "f", "p"];
+  function renderTable() {
+    $("ifs").innerHTML = `<tr><th></th>${COLS.map(c => `<th>${c}</th>`).join("")}</tr>` +
+      maps.map((m, i) => `<tr><td><span class="dot" style="background:rgb(${MAP_COLORS[i]})"></span>f${"₁₂₃₄"[i]}</td>${m.map((v, j) =>
+        `<td><input type="number" step="0.01" id="m${i}${j}" value="${+v.toFixed(4)}" aria-label="f${i + 1}, ${COLS[j]}"></td>`).join("")}</tr>`).join("");
+    $("ifs").querySelectorAll("input").forEach(inp => inp.addEventListener("input", () => {
+      const i = +inp.id[1], j = +inp.id[2], v = parseFloat(inp.value);
+      maps[i][j] = Number.isFinite(v) ? v : 0;
+      if (i === 1) syncSliders();
+      restart();
+    }));
+  }
+  function syncSliders() {
+    const [a, b] = maps[1];
+    const s = Math.hypot(a, b), ang = Math.atan2(b, a) * 180 / Math.PI;
+    $("bend").value = ang; $("bendOut").textContent = F.fmt(ang, 1) + "°";
+    $("dense").value = s; $("denseOut").textContent = F.fmt(s, 3);
+  }
+  function setF2FromSliders() {
+    const ang = +$("bend").value * Math.PI / 180, s = +$("dense").value;
+    maps[1][0] = s * Math.cos(ang); maps[1][1] = s * Math.sin(ang); maps[1][2] = -s * Math.sin(ang); maps[1][3] = s * Math.cos(ang);
+    $("bendOut").textContent = F.fmt(+$("bend").value, 1) + "°"; $("denseOut").textContent = F.fmt(s, 3);
+    [0, 1, 2, 3].forEach(j => { $("m1" + j).value = +maps[1][j].toFixed(4); });
+    restart();
+  }
+  $("bend").addEventListener("input", setF2FromSliders);
+  $("dense").addEventListener("input", setF2FromSliders);
+
+  // Случайный выбор преобразования с учётом вероятностей
+  let cum = [];
+  function prepare() {
+    const ps = maps.map(m => Math.max(0, m[6])), sum = ps.reduce((a, b) => a + b, 0) || 1;
+    let acc = 0; cum = ps.map(p => (acc += (sum ? p : 1) / sum));
+  }
+  function pick() { const r = Math.random(); for (let i = 0; i < cum.length; i++) if (r < cum[i]) return i; return cum.length - 1; }
+  function apply(i) { const m = maps[i]; const nx = m[0] * x + m[1] * y + m[4]; y = m[2] * x + m[3] * y + m[5]; x = nx; }
+
+  function restart() {
+    prepare();
+    x = 0; y = 0;
+    // находим границы картинки по пробному прогону
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity, bad = false;
+    for (let k = 0; k < 30000; k++) {
+      apply(pick());
+      if (!Number.isFinite(x) || Math.abs(x) > 1e6 || Math.abs(y) > 1e6) { bad = true; break; }
+      if (k > 50) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }
+    }
+    fit = bad || !(x1 > x0) || !(y1 > y0) ? null : { x0, x1, y0, y1 };
+    x = 0; y = 0; total = 0;
+    cnt = new Uint32Array(W * H); sr = new Float32Array(W * H); sg = new Float32Array(W * H); sb = new Float32Array(W * H);
+    img = g.createImageData(W, H);
+    if (!fit) {
+      g.fillStyle = "#0d1117"; g.fillRect(0, 0, W, H);
+      $("info").textContent = bad ? "Точки улетают: одно из преобразований не сжимает. Уменьшите коэффициенты." : "Фигура вырождается в точку или линию.";
+    }
+    stats();
+  }
+
+  function frame() {
+    if (fit && total < CAP) {
+      const pad = 0.05, bw = fit.x1 - fit.x0, bh = fit.y1 - fit.y0;
+      const sc = Math.min(W * (1 - 2 * pad) / bw, H * (1 - 2 * pad) / bh);
+      const ox = (W - bw * sc) / 2 - fit.x0 * sc, oy = (H + bh * sc) / 2 + fit.y0 * sc;
+      for (let k = 0; k < 40000; k++) {
+        const i = pick(); apply(i);
+        const px = (x * sc + ox) | 0, py = (oy - y * sc) | 0;
+        if (px < 0 || py < 0 || px >= W || py >= H) continue;
+        const o = py * W + px, c = MAP_COLORS[i];
+        cnt[o]++; sr[o] += c[0]; sg[o] += c[1]; sb[o] += c[2];
+      }
+      total += 40000;
+      paint();
+    }
+    requestAnimationFrame(frame);
+  }
+  function paint() {
+    const d = img.data; let mx = 1;
+    for (let o = 0; o < cnt.length; o++) if (cnt[o] > mx) mx = cnt[o];
+    const lm = Math.log(1 + mx);
+    for (let o = 0, p = 0; o < cnt.length; o++, p += 4) {
+      const n = cnt[o];
+      if (!n) { d[p] = 13; d[p + 1] = 17; d[p + 2] = 23; d[p + 3] = 255; continue; }
+      const v = 0.35 + 0.65 * Math.log(1 + n) / lm;
+      if (byMap) { d[p] = sr[o] / n * v; d[p + 1] = sg[o] / n * v; d[p + 2] = sb[o] / n * v; }
+      else { d[p] = 70 * v; d[p + 1] = 220 * v; d[p + 2] = 110 * v; }
+      d[p + 3] = 255;
+    }
+    g.putImageData(img, 0, 0);
+    $("info").textContent = `точек: ${total.toLocaleString("ru-RU")}${total >= CAP ? " · готово" : ""}`;
+  }
+  function stats() {
+    const det = maps.map(m => Math.abs(m[0] * m[3] - m[1] * m[2]));
+    $("stats").innerHTML = maps.map((m, i) =>
+      `<span class="k"><span class="dot" style="background:rgb(${MAP_COLORS[i]})"></span>f${"₁₂₃₄"[i]}: площадь умножается на</span><span class="v">${F.fmt(det[i], 3)}</span>`).join("") +
+      `<span class="k">Сумма вероятностей</span><span class="v">${F.fmt(maps.reduce((s, m) => s + Math.max(0, m[6]), 0), 3)}</span>`;
+  }
+
+  Object.keys(PRESETS).forEach(n => {
+    const b = Object.assign(document.createElement("button"), { className: "btn", type: "button", textContent: n });
+    b.addEventListener("click", () => { maps = PRESETS[n].map(r => r.slice()); renderTable(); syncSliders(); restart(); });
+    $("presets").appendChild(b);
+  });
+  $("byMap").addEventListener("change", e => { byMap = e.target.checked; if (fit) paint(); });
+
+  renderTable(); syncSliders();
+  F.fitCanvas(cv, () => { W = cv.width; H = cv.height; restart(); }, 1.5);
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

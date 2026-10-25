@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Снежинка Коха</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600&family=JetBrains+Mono:wght@400;600&family=Unbounded:wght@500;700&display=swap">
+<link rel="stylesheet" href="../fractal.css">
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="crumbs"><a href="../../">← Все примеры</a><a href="../">Фракталы</a></div>
+    <h1>Снежинка Коха</h1>
+    <span class="formula-top">отрезок → 4 отрезка по ⅓</span>
+  </header>
+
+  <div class="main">
+    <div class="view">
+      <canvas id="cv" aria-label="Кривая Коха"></canvas>
+      <div class="tools"><button class="btn" id="reset" type="button">Весь вид</button></div>
+      <div class="overlay"><span>колесо/щипок — масштаб · тяните — сдвиг</span><span id="viewInfo"></span></div>
+    </div>
+
+    <aside class="panel">
+      <div class="group">
+        <p class="label">Форма</p>
+        <div class="row" id="modes"></div>
+      </div>
+      <div class="group">
+        <div class="slider"><div class="slider-row"><label for="n">Шаг построения n</label><output id="nOut"></output></div>
+          <input type="range" id="n" min="0" max="7" step="1" value="3"></div>
+        <div class="row"><button class="btn" id="minus" type="button">− шаг</button><button class="btn primary" id="plus" type="button">+ шаг</button></div>
+      </div>
+      <div class="group">
+        <div class="slider"><div class="slider-row"><label for="ang">Угол зубца θ</label><output id="angOut"></output></div>
+          <input type="range" id="ang" min="0" max="80" step="1" value="60"></div>
+        <p class="hint">Классическая снежинка — θ = 60°: зубец равносторонний. При других углах получается кривая Чезаро.</p>
+        <div class="toggles"><label><input type="checkbox" id="fill" checked> Заливка</label><label><input type="checkbox" id="prev"> Предыдущий шаг</label></div>
+      </div>
+      <div class="stats" id="stats"></div>
+    </aside>
+  </div>
+
+  <section class="about">
+    <div class="card">
+      <h2>Что это</h2>
+      <p>Берём отрезок, делим на три части, а на средней строим зубец — два отрезка, сходящихся под углом. Из одного отрезка получилось четыре. Повторяем то же самое с каждым новым отрезком, и так до бесконечности.</p>
+      <p>Если начать с равностороннего треугольника, получится снежинка. Каждый шаг увеличивает длину в 4/3 раза:</p>
+      <span class="f">Pₙ = P₀ · (4/3)ⁿ → ∞,    Sₙ → 8/5 · S₀</span>
+      <p>Бесконечно длинная граница охватывает конечную площадь. При этом у кривой ни в одной точке нет касательной.</p>
+    </div>
+    <div class="card">
+      <h2>История</h2>
+      <ul class="timeline">
+        <li><b>1872</b><span>Карл Вейерштрасс приводит формулу непрерывной функции, у которой нигде нет производной. Многие математики считают такие объекты «патологией».</span></li>
+        <li><b>1904</b><span>Шведский математик Хельге фон Кох публикует статью «О непрерывной кривой без касательных, получаемой элементарным геометрическим построением». Он хотел показать то же явление на простой картинке, без сложных формул.</span></li>
+        <li><b>1905</b><span>Эрнесто Чезаро изучает вариант построения с другими углами зубца: эти кривые теперь носят его имя.</span></li>
+        <li><b>1975</b><span>Мандельброт делает снежинку Коха одним из главных примеров фракталов и связывает её с длиной береговой линии.</span></li>
+      </ul>
+    </div>
+    <div class="card">
+      <h2>Числа и факты</h2>
+      <div class="facts">
+        <span>Отрезков на шаге n</span><span class="v">4ⁿ (снежинка: 3·4ⁿ)</span>
+        <span>Длина на шаге n</span><span class="v">(4/3)ⁿ</span>
+        <span>Площадь снежинки</span><span class="v">8/5 треугольника</span>
+        <span>Размерность</span><span class="v">log 4 / log 3 ≈ 1,2619</span>
+      </div>
+      <p style="margin-top:10px">Размерность больше 1, но меньше 2. Кривая «толще» линии, но не заполняет плоскость. Увеличьте любой кусочек: он выглядит так же, как вся кривая.</p>
+    </div>
+  </section>
+
+  <nav class="more" data-current="koch" aria-label="Другие фракталы"></nav>
+</div>
+
+<script src="../common.js"></script>
+<script>
+(function () {
+  const $ = id => document.getElementById(id), F = Fractal;
+  const cv = $("cv"), g = cv.getContext("2d");
+  const st = { mode: "flake", n: 3, ang: 60, fill: true, prev: false, grow: 1 };
+  const view = { zoom: 1, ox: 0, oy: 0 };
+  let dpr = 1;
+
+  // Начальная фигура: отрезок или треугольник (обход по часовой, чтобы зубцы шли наружу)
+  function start() {
+    if (st.mode === "curve") return { pts: [[0, 0], [1, 0]], closed: false };
+    const h = Math.sqrt(3) / 2;
+    return { pts: [[0, 0], [0.5, h], [1, 0]], closed: true };
+  }
+  function step(pts, closed, ang, grow, sign) {
+    const out = [], tan = Math.tan(ang * Math.PI / 180), m = closed ? pts.length : pts.length - 1;
+    for (let i = 0; i < m; i++) {
+      const [x0, y0] = pts[i], [x1, y1] = pts[(i + 1) % pts.length];
+      const dx = x1 - x0, dy = y1 - y0;
+      const hgt = tan / 6 * grow * sign;                  // высота зубца в долях длины отрезка
+      out.push([x0, y0], [x0 + dx / 3, y0 + dy / 3],
+               [x0 + dx / 2 - dy * hgt, y0 + dy / 2 + dx * hgt],
+               [x0 + 2 * dx / 3, y0 + 2 * dy / 3]);
+    }
+    if (!closed) out.push(pts[pts.length - 1]);
+    return out;
+  }
+  function build(n, grow) {
+    const s = start(), sign = st.mode === "anti" ? -1 : 1;
+    let pts = s.pts;
+    for (let k = 0; k < n; k++) pts = step(pts, s.closed, st.ang, k === n - 1 ? grow : 1, st.mode === "curve" ? 1 : sign);
+    return { pts, closed: s.closed };
+  }
+  const area = pts => { let a = 0; for (let i = 0; i < pts.length; i++) { const p = pts[i], q = pts[(i + 1) % pts.length]; a += p[0] * q[1] - q[0] * p[1]; } return Math.abs(a) / 2; };
+
+  // Размерность подобия: 2·(1/3)^D + 2·s^D = 1, где s = 1 / (6·cos θ)
+  function dimension(ang) {
+    const sc = 1 / (6 * Math.cos(ang * Math.PI / 180));
+    const f = D => 2 * Math.pow(1 / 3, D) + 2 * Math.pow(sc, D) - 1;
+    let lo = 0.5, hi = 40;
+    for (let i = 0; i < 80; i++) { const mid = (lo + hi) / 2; f(mid) > 0 ? lo = mid : hi = mid; }
+    return (lo + hi) / 2;
+  }
+
+  let fit = null;
+  function computeFit() {
+    const { pts } = build(Math.max(st.n, 1), 1);
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    pts.concat(start().pts).forEach(([x, y]) => { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); });
+    fit = { x0, y0, x1, y1 };
+  }
+
+  function draw() {
+    const W = cv.width, H = cv.height;
+    g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, W, H);
+    if (!fit) computeFit();
+    const pad = 40 * dpr, bw = fit.x1 - fit.x0, bh = fit.y1 - fit.y0;
+    const sc = Math.min((W - 2 * pad) / bw, (H - 2 * pad) / bh) * view.zoom;
+    const cx = (fit.x0 + fit.x1) / 2, cy = (fit.y0 + fit.y1) / 2;
+    g.setTransform(sc, 0, 0, -sc, W / 2 + view.ox * dpr - cx * sc, H / 2 + view.oy * dpr + cy * sc);
+    const path = (pts, closed) => { g.beginPath(); pts.forEach(([x, y], i) => i ? g.lineTo(x, y) : g.moveTo(x, y)); if (closed) g.closePath(); };
+    if (st.prev && st.n > 0) {
+      const p = build(st.n - 1, 1); path(p.pts, p.closed);
+      g.setLineDash([6 / sc, 5 / sc]); g.strokeStyle = "rgba(255,207,77,0.8)"; g.lineWidth = 1.2 * dpr / sc; g.stroke(); g.setLineDash([]);
+    }
+    const cur = build(st.n, st.grow);
+    path(cur.pts, cur.closed);
+    if (cur.closed && st.fill) { g.fillStyle = "rgba(94,160,255,0.22)"; g.fill(); }
+    g.strokeStyle = "#8fc2ff"; g.lineWidth = 1.6 * dpr / sc; g.lineJoin = "round"; g.stroke();
+    $("viewInfo").textContent = view.zoom > 1.01 ? `увеличение ×${F.fmt(view.zoom, 1)}` : "";
+    stats(cur);
+  }
+
+  function stats(cur) {
+    const n = st.n, base = st.mode === "curve" ? 1 : 3;
+    const k = 2 / 3 + 1 / (3 * Math.cos(st.ang * Math.PI / 180));   // во сколько раз растёт длина за шаг
+    const D = dimension(st.ang);
+    let html = `
+      <span class="k">Отрезков</span><span class="v">${(base * Math.pow(4, n)).toLocaleString("ru-RU")}</span>
+      <span class="k">Длина отрезка</span><span class="v">1/${Math.pow(3, n).toLocaleString("ru-RU")}${st.ang === 60 ? "" : " (средние иначе)"}</span>
+      <span class="k">Длина за шаг растёт в</span><span class="v">${F.fmt(k, 4)} раза</span>
+      <span class="k">Длина всей линии</span><span class="v">${F.fmt(Math.pow(k, n), 3)} × исходной</span>`;
+    if (cur.closed) {
+      const full = build(n, 1), a0 = area(start().pts);
+      html += `<span class="k">Площадь</span><span class="v">${F.fmt(area(full.pts) / a0, 4)} × треугольника</span>`;
+    }
+    html += `<span class="k">Размерность</span><span class="v">${D > 2.0005 ? "> 2: зубцы накладываются" : F.fmt(D, 4)}</span>`;
+    $("stats").innerHTML = html;
+  }
+
+  // Плавный рост зубцов при переходе на новый шаг
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let anim = null;
+  function setN(n, animate) {
+    n = Math.max(0, Math.min(7, n));
+    const grew = n > st.n;
+    st.n = n; $("n").value = n; $("nOut").textContent = n;
+    fit = null;
+    if (anim) cancelAnimationFrame(anim);
+    if (grew && animate && !reduce) {
+      const t0 = performance.now();
+      const tick = now => { st.grow = Math.min(1, (now - t0) / 500); st.grow = 1 - Math.pow(1 - st.grow, 3); draw(); if (st.grow < 1) anim = requestAnimationFrame(tick); };
+      st.grow = 0; anim = requestAnimationFrame(tick);
+    } else { st.grow = 1; draw(); }
+  }
+  $("n").addEventListener("input", e => setN(+e.target.value, true));
+  $("plus").addEventListener("click", () => setN(st.n + 1, true));
+  $("minus").addEventListener("click", () => setN(st.n - 1, false));
+  F.bindSlider("ang", v => { st.ang = v; fit = null; draw(); }, v => v + "°");
+  $("fill").addEventListener("change", e => { st.fill = e.target.checked; draw(); });
+  $("prev").addEventListener("change", e => { st.prev = e.target.checked; draw(); });
+
+  [["curve", "Кривая"], ["flake", "Снежинка"], ["anti", "Антиснежинка"]].forEach(([m, t]) => {
+    const b = Object.assign(document.createElement("button"), { className: "btn", type: "button", textContent: t });
+    b.dataset.m = m; b.setAttribute("aria-pressed", String(m === st.mode));
+    b.addEventListener("click", () => {
+      st.mode = m; fit = null;
+      $("modes").querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", String(x.dataset.m === m)));
+      draw();
+    });
+    $("modes").appendChild(b);
+  });
+
+  // масштаб и сдвиг
+  function zoomAt(x, y, f) {
+    const r = cv.getBoundingClientRect(), mx = x - r.left - r.width / 2, my = y - r.top - r.height / 2;
+    const nz = Math.min(500, Math.max(1, view.zoom * f)); const k = nz / view.zoom;
+    view.ox = mx - (mx - view.ox) * k; view.oy = my - (my - view.oy) * k; view.zoom = nz;
+    if (nz === 1) { view.ox = 0; view.oy = 0; }
+    draw();
+  }
+  cv.addEventListener("wheel", e => { e.preventDefault(); zoomAt(e.clientX, e.clientY, Math.exp(-e.deltaY * 0.0015)); }, { passive: false });
+  const ptrs = new Map(); let pinch = null;
+  cv.addEventListener("pointerdown", e => { cv.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, [e.clientX, e.clientY]); pinch = null; });
+  cv.addEventListener("pointermove", e => {
+    if (!ptrs.has(e.pointerId)) return;
+    const p = ptrs.get(e.pointerId); ptrs.set(e.pointerId, [e.clientX, e.clientY]);
+    if (ptrs.size === 1) { view.ox += e.clientX - p[0]; view.oy += e.clientY - p[1]; draw(); }
+    else if (ptrs.size === 2) { const [a, b] = [...ptrs.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]); if (pinch) zoomAt((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, d / pinch); pinch = d; }
+  });
+  const up = e => { ptrs.delete(e.pointerId); pinch = null; };
+  cv.addEventListener("pointerup", up); cv.addEventListener("pointercancel", up);
+  $("reset").addEventListener("click", () => { view.zoom = 1; view.ox = 0; view.oy = 0; draw(); });
+
+  F.fitCanvas(cv, (w, h, d) => { dpr = d; draw(); });
+  $("nOut").textContent = st.n;
+})();
+</script>
+</body>
+</html>

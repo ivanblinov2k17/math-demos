@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Фракталы</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600&family=JetBrains+Mono:wght@400;600&family=Unbounded:wght@500;700&display=swap">
+<link rel="stylesheet" href="fractal.css">
+<style>
+  .lead { color: var(--muted); max-width: 70ch; margin: 0; }
+  .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+  @media (max-width: 900px) { .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 560px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+  .tile { display: grid; grid-template-rows: auto 1fr; border: 1px solid var(--line); border-radius: 10px; overflow: hidden;
+          background: var(--surface); color: inherit; text-decoration: none; min-width: 0; }
+  .tile:hover { border-color: var(--accent); }
+  .tile canvas { display: block; width: 100%; aspect-ratio: 16 / 10; background: var(--canvas); }
+  .tile div { padding: 12px 14px 14px; display: grid; gap: 4px; align-content: start; }
+  .tile h2 { margin: 0; font-size: 16px; font-weight: 600; }
+  .tile p { margin: 0; color: var(--muted); font-size: 14px; }
+  .tile .dim { font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
+  .tablewrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; min-width: 480px; font-size: 14px; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); }
+  th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); font-weight: 600; }
+  td.n { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+  .bar { height: 8px; border-radius: 4px; background: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="crumbs"><a href="../">← Все примеры</a></div>
+    <h1>Фракталы</h1>
+  </header>
+  <p class="lead">Фрактал — фигура, в которой часть похожа на целое: увеличьте кусочек, и вы снова увидите тот же узор. Почти все фракталы строятся одним правилом, повторённым бесконечно много раз. У каждой страницы есть параметры, которые можно менять, описание и история открытия.</p>
+
+  <div class="grid" id="tiles"></div>
+
+  <section class="about">
+    <div class="card">
+      <h2>Дробная размерность</h2>
+      <p>У отрезка размерность 1: если уменьшить его в 3 раза, понадобится 3 копии, чтобы собрать исходный. У квадрата — 2: нужно 9 = 3² копий. В общем случае N копий с уменьшением в k раз дают размерность</p>
+      <span class="f">D = log N / log k</span>
+      <p>Кривая Коха собрана из 4 копий, уменьшенных в 3 раза: D = log 4 / log 3 ≈ 1,26. Она больше, чем линия, но меньше, чем часть плоскости.</p>
+    </div>
+    <div class="card">
+      <h2>Размерности фракталов раздела</h2>
+      <div class="tablewrap"><table>
+        <tr><th>Фрактал</th><th>Как считается</th><th>D</th><th style="width:30%"></th></tr>
+        <tr><td>Кривая Коха</td><td>4 копии, ×⅓</td><td class="n">1,262</td><td><div class="bar" style="width:63.1%"></div></td></tr>
+        <tr><td>Треугольник Серпинского</td><td>3 копии, ×½</td><td class="n">1,585</td><td><div class="bar" style="width:79.2%"></div></td></tr>
+        <tr><td>Ковёр Серпинского</td><td>8 копий, ×⅓</td><td class="n">1,893</td><td><div class="bar" style="width:94.6%"></div></td></tr>
+        <tr><td>Граница множества Мандельброта</td><td>доказал Шишикура, 1991</td><td class="n">2</td><td><div class="bar" style="width:100%"></div></td></tr>
+      </table></div>
+      <p style="margin-top:10px">Полоса показывает размерность от 0 до 2.</p>
+    </div>
+  </section>
+</div>
+
+<script src="common.js"></script>
+<script>
+(function () {
+  const INFO = {
+    "mandelbrot": ["z ← z² + c: какие c не уходят в бесконечность. Бесконечно сложная граница.", "граница: D = 2"],
+    "julia": ["То же правило, но c фиксировано. Каждому c — своё множество: кролик, дендрит, пыль.", "связно, если c ∈ M"],
+    "koch": ["Отрезок превращается в четыре. Бесконечный периметр вокруг конечной площади.", "D ≈ 1,262"],
+    "sierpinski": ["Вырезаем средние треугольники — или прыгаем к случайным вершинам.", "D ≈ 1,585"],
+    "barnsley-fern": ["Четыре аффинных преобразования, 28 чисел и случайность рисуют настоящий папоротник.", "4 преобразования"],
+    "pythagoras-tree": ["Квадраты на катетах прямоугольного треугольника, повторённые много раз.", "2ⁿ⁺¹ − 1 квадратов"],
+  };
+  const tiles = document.getElementById("tiles");
+  Fractal.PAGES.forEach(p => {
+    const a = document.createElement("a"); a.className = "tile"; a.href = p.slug + "/";
+    a.innerHTML = `<canvas data-slug="${p.slug}" aria-hidden="true"></canvas><div><h2>${p.title}</h2><p>${INFO[p.slug][0]}</p><span class="dim">${INFO[p.slug][1]}</span></div>`;
+    tiles.appendChild(a);
+  });
+
+  // Маленькие превью рисуются прямо здесь, простыми и быстрыми версиями алгоритмов
+  const PREVIEW = {
+    mandelbrot(g, w, h) { escape(g, w, h, (x, y) => [0, 0, x, y], -0.65, 0, 1.25); },
+    julia(g, w, h) { escape(g, w, h, (x, y) => [x, y, -0.1226, 0.7449], 0, 0, 1.3); },
+    koch(g, w, h) {
+      let pts = [[0, 0], [0.5, Math.sqrt(3) / 2], [1, 0]];
+      for (let k = 0; k < 4; k++) { const o = []; pts.forEach((p, i) => { const q = pts[(i + 1) % pts.length], dx = q[0] - p[0], dy = q[1] - p[1];
+        o.push(p, [p[0] + dx / 3, p[1] + dy / 3], [p[0] + dx / 2 - dy * Math.sqrt(3) / 6, p[1] + dy / 2 + dx * Math.sqrt(3) / 6], [p[0] + 2 * dx / 3, p[1] + 2 * dy / 3]); }); pts = o; }
+      const s = h * 0.62, ox = (w - s) / 2, oy = h * 0.66;
+      g.beginPath(); pts.forEach(([x, y], i) => i ? g.lineTo(ox + x * s, oy - y * s) : g.moveTo(ox + x * s, oy - y * s)); g.closePath();
+      g.fillStyle = "rgba(94,160,255,0.22)"; g.fill(); g.strokeStyle = "#8fc2ff"; g.lineWidth = 1; g.stroke();
+    },
+    sierpinski(g, w, h) {
+      const V = [[w / 2, h * 0.06], [w * 0.5 - h * 0.5, h * 0.94], [w * 0.5 + h * 0.5, h * 0.94]], C = ["#ff6b6b", "#5ea8ff", "#ffcf4d"];
+      let x = w / 2, y = h / 2;
+      for (let i = 0; i < 30000; i++) { const j = (Math.random() * 3) | 0; x = (x + V[j][0]) / 2; y = (y + V[j][1]) / 2; if (i > 10) { g.fillStyle = C[j]; g.fillRect(x, y, 1, 1); } }
+    },
+    "barnsley-fern"(g, w, h) {
+      const M = [[0, 0, 0, 0.16, 0, 0, 0.01], [0.85, 0.04, -0.04, 0.85, 0, 1.6, 0.86], [0.2, -0.26, 0.23, 0.22, 0, 1.6, 0.93], [-0.15, 0.28, 0.26, 0.24, 0, 0.44, 1]];
+      let x = 0, y = 0; g.fillStyle = "#62d698";
+      const s = h / 10.6;
+      for (let i = 0; i < 40000; i++) { const r = Math.random(), m = M.find(q => r < q[6]); const nx = m[0] * x + m[1] * y + m[4]; y = m[2] * x + m[3] * y + m[5]; x = nx;
+        g.fillRect(w / 2 + x * s, h - 4 - y * s, 1, 1); }
+    },
+    "pythagoras-tree"(g, w, h) {
+      const s = h / 4.4, ca = Math.SQRT1_2;
+      const rec = (ax, ay, bx, by, k) => {
+        const vx = -(by - ay), vy = bx - ax, dx = ax + vx, dy = ay + vy, cx = bx + vx, cy = by + vy;
+        const t = k / 9; g.fillStyle = t < 0.35 ? "rgb(140,98,55)" : `rgb(${110 + 10 * t},${160 + 60 * t},${70 + 50 * t})`;
+        g.beginPath(); [[ax, ay], [bx, by], [cx, cy], [dx, dy]].forEach(([x, y], i) => i ? g.lineTo(w / 2 + x * s, h - 4 - y * s) : g.moveTo(w / 2 + x * s, h - 4 - y * s)); g.fill();
+        if (k === 9) return;
+        const ux = cx - dx, uy = cy - dy, ex = dx + (ux * ca - uy * ca) * ca, ey = dy + (ux * ca + uy * ca) * ca;
+        rec(dx, dy, ex, ey, k + 1); rec(ex, ey, cx, cy, k + 1);
+      };
+      rec(-0.5, 0, 0.5, 0, 0);
+    },
+  };
+  function escape(g, w, h, init, cx, cy, half) {
+    const img = g.createImageData(w, h);
+    for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
+      const re = cx + (i - w / 2) * 2 * half / h, im = cy - (j - h / 2) * 2 * half / h;
+      let [x, y, a, b] = init(re, im), n = 0;
+      for (; n < 120 && x * x + y * y < 16; n++) { const t = x * x - y * y + a; y = 2 * x * y + b; x = t; }
+      const o = (j * w + i) * 4;
+      if (n === 120) { img.data[o] = 8; img.data[o + 1] = 10; img.data[o + 2] = 16; }
+      else { const t = Math.sqrt(n / 120); img.data[o] = 40 + 215 * t * t; img.data[o + 1] = 70 + 180 * t; img.data[o + 2] = 130 + 125 * t; }
+      img.data[o + 3] = 255;
+    }
+    g.putImageData(img, 0, 0);
+  }
+  document.querySelectorAll("canvas[data-slug]").forEach(cv => {
+    const w = cv.clientWidth, h = cv.clientHeight; cv.width = w; cv.height = h;
+    const g = cv.getContext("2d"); g.fillStyle = "#0d1117"; g.fillRect(0, 0, w, h);
+    PREVIEW[cv.dataset.slug](g, w, h);
+  });
+})();
+</script>
+</body>
+</html>

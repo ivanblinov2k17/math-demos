@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Треугольник Серпинского</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600&family=JetBrains+Mono:wght@400;600&family=Unbounded:wght@500;700&display=swap">
+<link rel="stylesheet" href="../fractal.css">
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="crumbs"><a href="../../">← Все примеры</a><a href="../">Фракталы</a></div>
+    <h1>Треугольник Серпинского</h1>
+    <span class="formula-top">P ← P + r · (V − P)</span>
+  </header>
+
+  <div class="main">
+    <div class="view">
+      <canvas id="cv" aria-label="Треугольник Серпинского"></canvas>
+      <div class="overlay"><span id="info"></span><span>вершины можно перетаскивать</span></div>
+    </div>
+
+    <aside class="panel">
+      <div class="group">
+        <p class="label">Способ построения</p>
+        <div class="row" id="modes"></div>
+      </div>
+
+      <div class="group" id="chaosBox">
+        <div class="row" id="presets"></div>
+        <div class="slider"><div class="slider-row"><label for="k">Число вершин</label><output id="kOut"></output></div>
+          <input type="range" id="k" min="3" max="8" step="1" value="3"></div>
+        <div class="slider"><div class="slider-row"><label for="r">Доля пути к вершине r</label><output id="rOut"></output></div>
+          <input type="range" id="r" min="0.2" max="0.85" step="0.001" value="0.5"></div>
+        <div class="toggles">
+          <label><input type="checkbox" id="norep"> Нельзя дважды подряд одну вершину</label>
+          <label><input type="checkbox" id="mids"> Добавить середины сторон</label>
+          <label><input type="checkbox" id="color" checked> Цвет по вершине</label>
+        </div>
+        <div class="slider"><div class="slider-row"><label for="speed">Скорость</label><output id="speedOut"></output></div>
+          <input type="range" id="speed" min="0" max="5" step="1" value="3"></div>
+        <div class="row">
+          <button class="btn" id="step1" type="button">Один шаг</button>
+          <button class="btn primary" id="run" type="button">Пауза</button>
+          <button class="btn" id="burst" type="button">+100 000 точек</button>
+          <button class="btn" id="clear" type="button">Очистить</button>
+        </div>
+      </div>
+
+      <div class="group" id="cutBox" hidden>
+        <div class="slider"><div class="slider-row"><label for="depth">Шаг n</label><output id="depthOut"></output></div>
+          <input type="range" id="depth" min="0" max="9" step="1" value="4"></div>
+        <p class="hint">На каждом шаге из каждого чёрного треугольника вырезаем средний, соединив середины сторон.</p>
+      </div>
+
+      <div class="stats" id="stats"></div>
+    </aside>
+  </div>
+
+  <section class="about">
+    <div class="card">
+      <h2>Что это</h2>
+      <p>Из треугольника вырезаем средний треугольник, соединив середины сторон. Остаются три угловых. С каждым из них делаем то же самое, и так бесконечно. То, что останется в пределе, и есть треугольник Серпинского.</p>
+      <p>Удивительно, что тот же узор получается из случайности. Это «игра хаоса»: выберите любую точку, затем много раз выбирайте случайную вершину и переносите точку на полпути к ней.</p>
+      <span class="f">Pₙ₊₁ = Pₙ + ½ · (Vслучайная − Pₙ)</span>
+      <p>Попробуйте другие правила: 5 вершин и r ≈ 0,618; квадрат с запретом повторять вершину; 8 точек (углы и середины сторон) и r = 2/3 — получится ковёр Серпинского.</p>
+    </div>
+    <div class="card">
+      <h2>История</h2>
+      <ul class="timeline">
+        <li><b>XIII в.</b><span>Похожий узор выкладывают мастера-космати в мозаичных полах итальянских соборов, например в Ананьи.</span></li>
+        <li><b>1915</b><span>Польский математик Вацлав Серпинский описывает его как кривую, у которой каждая точка — точка ветвления.</span></li>
+        <li><b>1916</b><span>Серпинский строит двумерный аналог — ковёр Серпинского из квадрата.</span></li>
+        <li><b>1988</b><span>Майкл Барнсли в книге «Fractals Everywhere» популяризирует игру хаоса: случайный процесс, который рисует фрактал.</span></li>
+      </ul>
+    </div>
+    <div class="card">
+      <h2>Числа и факты</h2>
+      <div class="facts">
+        <span>Треугольников на шаге n</span><span class="v">3ⁿ</span>
+        <span>Оставшаяся площадь</span><span class="v">(3/4)ⁿ → 0</span>
+        <span>Периметр</span><span class="v">(3/2)ⁿ → ∞</span>
+        <span>Размерность</span><span class="v">log 3 / log 2 ≈ 1,585</span>
+      </div>
+      <p style="margin-top:10px">Тот же узор появляется в треугольнике Паскаля, если закрасить нечётные числа.</p>
+    </div>
+  </section>
+
+  <nav class="more" data-current="sierpinski" aria-label="Другие фракталы"></nav>
+</div>
+
+<script src="../common.js"></script>
+<script>
+(function () {
+  const $ = id => document.getElementById(id), F = Fractal;
+  const cv = $("cv"), g = cv.getContext("2d");
+  const layer = document.createElement("canvas"), lg = layer.getContext("2d");
+  const COLORS = [[255,107,107],[94,168,255],[255,207,77],[98,214,152],[196,140,255],[255,150,72],[86,214,230],[255,130,200],[200,200,210]];
+  const st = { mode: "chaos", k: 3, r: 0.5, norep: false, mids: false, color: true, speed: 3, running: true, depth: 4 };
+  let W = 0, H = 0, dpr = 1, img = null, verts = [], P = [0, 0], last = -1, count = 0, lastStep = null;
+
+  // Вершины храним в долях квадрата [0,1]²; квадрат вписан в холст
+  function box() { const s = Math.min(W, H) * 0.9; return { s, x: (W - s) / 2, y: (H - s) / 2 }; }
+  const toPx = ([u, v]) => { const b = box(); return [b.x + u * b.s, b.y + (1 - v) * b.s]; };
+  const fromPx = (x, y) => { const b = box(); return [(x - b.x) / b.s, 1 - (y - b.y) / b.s]; };
+  function regular(k) {
+    verts = [...Array(k)].map((_, i) => { const a = Math.PI / 2 + 2 * Math.PI * i / k; return [0.5 + 0.48 * Math.cos(a), (k === 3 ? 0.40 : 0.5) + 0.48 * Math.sin(a)]; });
+    if (k === 4) verts = [[0.04, 0.04], [0.96, 0.04], [0.96, 0.96], [0.04, 0.96]];
+  }
+  function targets() {
+    if (!st.mids) return verts;
+    const t = [];
+    verts.forEach((v, i) => { const w = verts[(i + 1) % verts.length]; t.push(v, [(v[0] + w[0]) / 2, (v[1] + w[1]) / 2]); });
+    return t;
+  }
+  function clear() {
+    img = lg.createImageData(W, H); count = 0; last = -1; lastStep = null;
+    P = [0.5, 0.5];
+    for (let i = 3; i < img.data.length; i += 4) img.data[i] = 0;
+    lg.putImageData(img, 0, 0); draw();
+  }
+  function plot(u, v, ci) {
+    const b = box(), x = (b.x + u * b.s) | 0, y = (b.y + (1 - v) * b.s) | 0;
+    if (x < 0 || y < 0 || x >= W || y >= H) return;
+    const o = (y * W + x) * 4, c = st.color ? COLORS[ci % COLORS.length] : [220, 230, 245];
+    img.data[o] = c[0]; img.data[o + 1] = c[1]; img.data[o + 2] = c[2]; img.data[o + 3] = 255;
+  }
+  function iterate(n) {
+    const T = targets(), k = T.length;
+    for (let i = 0; i < n; i++) {
+      let j = (Math.random() * k) | 0;
+      if (st.norep && k > 1) while (j === last) j = (Math.random() * k) | 0;
+      const from = P;
+      P = [P[0] + st.r * (T[j][0] - P[0]), P[1] + st.r * (T[j][1] - P[1])];
+      last = j; count++;
+      if (count > 15) plot(P[0], P[1], j);
+      if (n === 1) lastStep = { from, to: P, v: j };
+    }
+    lg.putImageData(img, 0, 0);
+  }
+
+  function draw() {
+    g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, W, H);
+    if (st.mode === "cut") { drawCut(); return; }
+    g.drawImage(layer, 0, 0);
+    const T = targets();
+    if (lastStep) {
+      const a = toPx(lastStep.from), b = toPx(T[lastStep.v]), p = toPx(lastStep.to);
+      g.strokeStyle = "rgba(255,255,255,0.6)"; g.lineWidth = 1.5 * dpr; g.setLineDash([5 * dpr, 4 * dpr]);
+      g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.stroke(); g.setLineDash([]);
+      g.fillStyle = "#fff"; g.beginPath(); g.arc(p[0], p[1], 4.5 * dpr, 0, 7); g.fill();
+      g.strokeStyle = "#fff"; g.beginPath(); g.arc(a[0], a[1], 3.5 * dpr, 0, 7); g.stroke();
+    }
+    T.forEach((v, i) => {
+      const [x, y] = toPx(v), c = COLORS[i % COLORS.length], big = verts.includes(v);
+      g.fillStyle = `rgb(${c})`; g.strokeStyle = "#0d1117"; g.lineWidth = 2 * dpr;
+      g.beginPath(); g.arc(x, y, (big ? 8 : 5) * dpr, 0, 7); g.fill(); g.stroke();
+      if (lastStep && lastStep.v === i) { g.strokeStyle = "#fff"; g.beginPath(); g.arc(x, y, 13 * dpr, 0, 7); g.stroke(); }
+    });
+    $("info").textContent = `точек: ${count.toLocaleString("ru-RU")}`;
+    const T2 = targets().length;
+    const dim = Math.log(T2) / Math.log(1 / (1 - st.r));
+    $("stats").innerHTML = `
+      <span class="k">Точек-целей</span><span class="v">${T2}</span>
+      <span class="k">Каждый кусок меньше целого в</span><span class="v">${F.fmt(1 / (1 - st.r), 3)} раза</span>
+      <span class="k">Размерность (если куски не перекрываются)</span><span class="v">${st.norep ? "для правила с запретом формула не подходит" : dim >= 2 ? "≥ 2: куски перекрываются" : F.fmt(dim, 4)}</span>`;
+  }
+
+  // Классическое построение: рекурсивно вырезаем средний треугольник
+  function drawCut() {
+    const [A, B, C] = verts.slice(0, 3).map(toPx);
+    g.fillStyle = "#8fc2ff";
+    const rec = (a, b, c, d) => {
+      if (d === 0) { g.beginPath(); g.moveTo(a[0], a[1]); g.lineTo(b[0], b[1]); g.lineTo(c[0], c[1]); g.closePath(); g.fill(); return; }
+      const m = (p, q) => [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2];
+      const ab = m(a, b), bc = m(b, c), ca = m(c, a);
+      rec(a, ab, ca, d - 1); rec(ab, b, bc, d - 1); rec(ca, bc, c, d - 1);
+    };
+    rec(A, B, C, st.depth);
+    [A, B, C].forEach(([x, y]) => { g.fillStyle = "#ffcf4d"; g.beginPath(); g.arc(x, y, 7 * dpr, 0, 7); g.fill(); });
+    $("info").textContent = `треугольников: ${Math.pow(3, st.depth).toLocaleString("ru-RU")}`;
+    $("stats").innerHTML = `
+      <span class="k">Треугольников</span><span class="v">${Math.pow(3, st.depth).toLocaleString("ru-RU")}</span>
+      <span class="k">Осталось площади</span><span class="v">${F.fmt(100 * Math.pow(0.75, st.depth), 2)} %</span>
+      <span class="k">Периметр</span><span class="v">${F.fmt(Math.pow(1.5, st.depth), 2)} × исходного</span>
+      <span class="k">Размерность</span><span class="v">1,585</span>`;
+  }
+
+  // Цикл анимации игры хаоса
+  const SPEEDS = [0, 1, 10, 200, 2000, 20000];
+  function loop() {
+    if (st.mode === "chaos" && st.running && SPEEDS[st.speed] > 0) { iterate(SPEEDS[st.speed]); if (SPEEDS[st.speed] > 1) lastStep = null; draw(); }
+    requestAnimationFrame(loop);
+  }
+
+  // Перетаскивание вершин
+  let dragV = -1;
+  cv.addEventListener("pointerdown", e => {
+    const r = cv.getBoundingClientRect(), x = (e.clientX - r.left) * dpr, y = (e.clientY - r.top) * dpr;
+    const list = st.mode === "cut" ? verts.slice(0, 3) : verts;
+    dragV = list.findIndex(v => { const [px, py] = toPx(v); return Math.hypot(px - x, py - y) < 18 * dpr; });
+    if (dragV >= 0) cv.setPointerCapture(e.pointerId);
+  });
+  cv.addEventListener("pointermove", e => {
+    const r = cv.getBoundingClientRect(), x = (e.clientX - r.left) * dpr, y = (e.clientY - r.top) * dpr;
+    if (dragV < 0) {
+      const list = st.mode === "cut" ? verts.slice(0, 3) : verts;
+      cv.style.cursor = list.some(v => { const [px, py] = toPx(v); return Math.hypot(px - x, py - y) < 18 * dpr; }) ? "grab" : "";
+      return;
+    }
+    const [u, v] = fromPx(x, y);
+    verts[dragV] = [Math.min(1.05, Math.max(-0.05, u)), Math.min(1.05, Math.max(-0.05, v))];
+    if (st.mode === "chaos") clear(); else draw();
+  });
+  const endDrag = () => { dragV = -1; };
+  cv.addEventListener("pointerup", endDrag); cv.addEventListener("pointercancel", endDrag);
+
+  // Управление
+  function syncInputs() {
+    $("k").value = st.k; $("kOut").textContent = st.k; $("r").value = st.r; $("rOut").textContent = F.fmt(st.r, 3);
+    $("norep").checked = st.norep; $("mids").checked = st.mids;
+  }
+  const PRESETS = [
+    ["Треугольник", { k: 3, r: 0.5, norep: false, mids: false }],
+    ["Пятиугольник", { k: 5, r: 0.618, norep: false, mids: false }],
+    ["Шестиугольник", { k: 6, r: 0.667, norep: false, mids: false }],
+    ["Квадрат без повторов", { k: 4, r: 0.5, norep: true, mids: false }],
+    ["Ковёр", { k: 4, r: 0.667, norep: false, mids: true }],
+  ];
+  PRESETS.forEach(([n, p]) => {
+    const b = Object.assign(document.createElement("button"), { className: "btn", type: "button", textContent: n });
+    b.addEventListener("click", () => { Object.assign(st, p); regular(st.k); syncInputs(); clear(); });
+    $("presets").appendChild(b);
+  });
+  $("k").addEventListener("input", e => { st.k = +e.target.value; $("kOut").textContent = st.k; regular(st.k); clear(); });
+  F.bindSlider("r", v => { st.r = v; clear(); }, v => F.fmt(v, 3));
+  $("norep").addEventListener("change", e => { st.norep = e.target.checked; clear(); });
+  $("mids").addEventListener("change", e => { st.mids = e.target.checked; clear(); });
+  $("color").addEventListener("change", e => { st.color = e.target.checked; clear(); });
+  F.bindSlider("speed", v => { st.speed = v; }, v => ["стоп", "1 точка", "10", "200", "2 000", "20 000"][v] + (v > 1 ? " за кадр" : ""));
+  $("run").addEventListener("click", () => { st.running = !st.running; $("run").textContent = st.running ? "Пауза" : "Продолжить"; });
+  $("step1").addEventListener("click", () => { st.running = false; $("run").textContent = "Продолжить"; iterate(1); draw(); });
+  $("burst").addEventListener("click", () => { iterate(100000); lastStep = null; draw(); });
+  $("clear").addEventListener("click", clear);
+  F.bindSlider("depth", v => { st.depth = v; draw(); });
+
+  [["chaos", "Игра хаоса"], ["cut", "Вырезание треугольников"]].forEach(([m, t]) => {
+    const b = Object.assign(document.createElement("button"), { className: "btn", type: "button", textContent: t });
+    b.dataset.m = m; b.setAttribute("aria-pressed", String(m === st.mode));
+    b.addEventListener("click", () => {
+      st.mode = m;
+      $("modes").querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", String(x.dataset.m === m)));
+      $("chaosBox").hidden = m !== "chaos"; $("cutBox").hidden = m !== "cut";
+      if (m === "cut" && verts.length !== 3) { st.k = 3; regular(3); syncInputs(); }
+      if (m === "chaos") clear(); else draw();
+    });
+    $("modes").appendChild(b);
+  });
+
+  regular(3); syncInputs();
+  F.fitCanvas(cv, (w, h, d) => { dpr = d; W = cv.width; H = cv.height; layer.width = W; layer.height = H; clear(); });
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
