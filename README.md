@@ -19,6 +19,7 @@ fractals/index.html     общая страница раздела с превь
 fractals/fractal.css    общий стиль страниц раздела
 fractals/common.js      навигация между фракталами, палитры, помощники
 fractals/escape.js      WebGL-движок для множеств Мандельброта и Жюлиа
+fractals/ifs-view.js    игра хаоса с глубоким приближением (Серпинский, папоротник)
 fractals/<фрактал>/index.html
 ```
 

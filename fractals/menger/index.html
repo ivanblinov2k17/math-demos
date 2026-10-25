@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Губка Менгера</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600&family=JetBrains+Mono:wght@400;600&family=Unbounded:wght@500;700&display=swap">
+<link rel="stylesheet" href="../fractal.css">
+<style>
+  .keep { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+  .keep label { display: flex; gap: 8px; align-items: center; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); cursor: pointer; font-size: 14px; }
+  .keep input { accent-color: var(--accent); }
+  .keep small { color: var(--muted); font-family: var(--font-mono); margin-left: auto; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="crumbs"><a href="../../">← Все примеры</a><a href="../">Фракталы</a></div>
+    <h1>Губка Менгера</h1>
+    <span class="formula-top">куб → 20 кубиков по ⅓</span>
+  </header>
+
+  <div class="main">
+    <div class="view">
+      <canvas id="cv" aria-label="Губка Менгера в 3D"></canvas>
+      <div class="tools"><button class="btn" id="reset" type="button">Сбросить вид</button></div>
+      <div class="overlay"><span>тяните — вращать · колесо/щипок — масштаб</span><span id="info"></span></div>
+    </div>
+
+    <aside class="panel">
+      <div class="group">
+        <div class="slider"><div class="slider-row"><label for="n">Шаг n</label><output id="nOut"></output></div>
+          <input type="range" id="n" min="0" max="4" step="1" value="3"></div>
+        <p class="hint" id="nHint"></p>
+      </div>
+      <div class="group">
+        <p class="label">Какие из 27 кубиков оставлять</p>
+        <div class="keep">
+          <label><input type="checkbox" id="k0" checked> Угловые <small>8</small></label>
+          <label><input type="checkbox" id="k1" checked> На рёбрах <small>12</small></label>
+          <label><input type="checkbox" id="k2"> В центрах граней <small>6</small></label>
+          <label><input type="checkbox" id="k3"> Центральный <small>1</small></label>
+        </div>
+        <div class="row" id="presets"></div>
+      </div>
+      <div class="group">
+        <p class="label">Разрез</p>
+        <div class="row" id="cuts"></div>
+        <div class="slider" id="cutBox" hidden><div class="slider-row"><label for="cut">Положение плоскости</label><output id="cutOut"></output></div>
+          <input type="range" id="cut" min="-100" max="100" step="1" value="0"></div>
+        <p class="hint" id="cutHint" hidden>Диагональный разрез через центр губки показывает узор из шестиконечных звёзд.</p>
+        <div class="toggles"><label><input type="checkbox" id="spin" checked> Медленно вращать</label></div>
+      </div>
+      <div class="stats" id="stats"></div>
+    </aside>
+  </div>
+
+  <section class="about">
+    <div class="card">
+      <h2>Что это</h2>
+      <p>Разрежем куб на 27 одинаковых кубиков, как кубик Рубика, и выбросим 7: центральный и шесть в центрах граней. Останется 20. С каждым из них сделаем то же самое, и так бесконечно.</p>
+      <span class="f">кубиков: 20ⁿ,   объём: (20/27)ⁿ → 0</span>
+      <p>Объём губки стремится к нулю, а площадь поверхности — к бесконечности. Каждая грань губки — ковёр Серпинского.</p>
+      <p>Меняя набор оставляемых кубиков, получаем другие фракталы: только углы — трёхмерную пыль Кантора, центры граней и центр — крест Вичека.</p>
+    </div>
+    <div class="card">
+      <h2>История</h2>
+      <ul class="timeline">
+        <li><b>1916</b><span>Вацлав Серпинский строит ковёр — двумерный «предок» губки.</span></li>
+        <li><b>1926</b><span>Австрийский математик Карл Менгер описывает губку, изучая, что такое размерность. Он доказывает, что губка «универсальна»: в ней можно найти копию любой кривой.</span></li>
+        <li><b>2014</b><span>В проекте MegaMenger тысячи людей в разных странах собирают губку 4-го шага из визитных карточек.</span></li>
+      </ul>
+    </div>
+    <div class="card">
+      <h2>Числа и факты</h2>
+      <div class="facts">
+        <span>Губка Менгера</span><span class="v">log 20 / log 3 ≈ 2,727</span>
+        <span>Пыль Кантора 3D</span><span class="v">log 8 / log 3 ≈ 1,893</span>
+        <span>Крест Вичека 3D</span><span class="v">log 7 / log 3 ≈ 1,771</span>
+        <span>Ковёр Серпинского (грань)</span><span class="v">log 8 / log 3 ≈ 1,893</span>
+      </div>
+      <p style="margin-top:10px">Размерность губки между 2 и 3: она «больше» поверхности, но не заполняет объём. Формула та же, что и для плоских фракталов: N копий с уменьшением в 3 раза дают D = log N / log 3.</p>
+    </div>
+  </section>
+
+  <nav class="more" data-current="menger" aria-label="Другие фракталы"></nav>
+</div>
+
+<script src="../common.js"></script>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+const $ = id => document.getElementById(id), F = Fractal;
+const cv = $("cv");
+const renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setClearColor(0x0d1117);
+renderer.localClippingEnabled = true;
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(35, 1, 0.05, 50);
+const HOME = new THREE.Vector3(2.4, 1.9, 2.9);
+camera.position.copy(HOME);
+const controls = new OrbitControls(camera, cv);
+controls.enableDamping = true; controls.minDistance = 0.6; controls.maxDistance = 12;
+scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x3a2f28, 1.2));
+const key = new THREE.DirectionalLight(0xffffff, 2.2); key.position.set(3, 5, 4); scene.add(key);
+const rim = new THREE.DirectionalLight(0xffc890, 0.8); rim.position.set(-4, -1, -3); scene.add(rim);
+
+const st = { n: 3, keep: [true, true, false, false], cut: "none", cutPos: 0, spin: true };
+const plane = new THREE.Plane(new THREE.Vector3(1, 0, 0), 0);
+const material = new THREE.MeshStandardMaterial({ color: 0xd9a55b, roughness: 0.55, metalness: 0.05, side: THREE.DoubleSide, clippingPlanes: [] });
+const group = new THREE.Group(); scene.add(group);
+let mesh = null;
+
+// Центры оставшихся кубиков: для каждого из 27 подкубиков считаем, сколько координат «средние» (тип 0–3)
+function centers(n) {
+  const keepOffsets = [];
+  for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) for (let k = 0; k < 3; k++) {
+    const type = (i === 1) + (j === 1) + (k === 1);
+    if (st.keep[type]) keepOffsets.push([i - 1, j - 1, k - 1]);
+  }
+  let pts = [[0, 0, 0]], size = 1;
+  for (let l = 0; l < n; l++) {
+    size /= 3; const next = [];
+    for (const p of pts) for (const o of keepOffsets) next.push([p[0] + o[0] * size, p[1] + o[1] * size, p[2] + o[2] * size]);
+    pts = next;
+  }
+  return { pts, size, N: keepOffsets.length };
+}
+
+function rebuild() {
+  if (mesh) { group.remove(mesh); mesh.geometry.dispose(); mesh.dispose?.(); mesh = null; }
+  const N = st.keep.reduce((s, k, t) => s + (k ? [8, 12, 6, 1][t] : 0), 0);
+  // ограничим количество кубиков, чтобы не повесить браузер
+  let n = st.n; while (n > 0 && Math.pow(N, n) > 600000) n--;
+  if (n !== st.n) { $("nHint").textContent = `При таком наборе шаг ${st.n} даёт слишком много кубиков, показан шаг ${n}.`; } else $("nHint").textContent = st.n === 4 ? "Шаг 4 — это 160 000 кубиков, на слабом устройстве может подтормаживать." : "";
+  const { pts, size } = centers(n);
+  if (pts.length) {
+    const geo = new THREE.BoxGeometry(size, size, size);
+    mesh = new THREE.InstancedMesh(geo, material, pts.length);
+    const m = new THREE.Matrix4(), c = new THREE.Color();
+    pts.forEach((p, i) => {
+      m.makeTranslation(p[0], p[1], p[2]); mesh.setMatrixAt(i, m);
+      // лёгкая игра оттенка по высоте, чтобы глубина читалась лучше
+      c.setHSL(0.09 + 0.04 * p[1], 0.62, 0.52 + 0.12 * p[1]); mesh.setColorAt(i, c);
+    });
+    mesh.instanceMatrix.needsUpdate = true; if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+    group.add(mesh);
+  }
+  const D = N > 0 ? Math.log(N) / Math.log(3) : 0;
+  $("stats").innerHTML = `
+    <span class="k">Оставляем из 27</span><span class="v">${N}</span>
+    <span class="k">Кубиков на шаге ${n}</span><span class="v">${pts.length.toLocaleString("ru-RU")}</span>
+    <span class="k">Сторона кубика</span><span class="v">1/${Math.pow(3, n)}</span>
+    <span class="k">Объём</span><span class="v">${F.fmt(100 * Math.pow(N / 27, n), 3)} %</span>
+    <span class="k">Размерность log ${N} / log 3</span><span class="v">${N ? F.fmt(D, 3) : "—"}</span>`;
+  $("info").textContent = `${pts.length.toLocaleString("ru-RU")} кубиков`;
+  ["k0", "k1", "k2", "k3"].forEach((id, t) => { $(id).checked = st.keep[t]; });
+}
+
+function applyCut() {
+  $("cutBox").hidden = st.cut === "none"; $("cutHint").hidden = st.cut !== "diag";
+  if (st.cut === "none") { material.clippingPlanes = []; }
+  else {
+    const nrm = st.cut === "axis" ? new THREE.Vector3(-1, 0, 0) : new THREE.Vector3(-1, -1, -1).normalize();
+    const range = st.cut === "axis" ? 0.5 : Math.sqrt(3) / 2;
+    plane.normal.copy(nrm); plane.constant = st.cutPos * range;
+    material.clippingPlanes = [plane];
+  }
+  material.needsUpdate = true;
+  $("cutOut").textContent = F.fmt(st.cutPos, 2);
+}
+
+// Управление
+$("n").addEventListener("input", e => { st.n = +e.target.value; $("nOut").textContent = st.n; rebuild(); });
+["k0", "k1", "k2", "k3"].forEach((id, t) => $(id).addEventListener("change", e => { st.keep[t] = e.target.checked; rebuild(); }));
+[["Губка Менгера", [true, true, false, false]], ["Пыль Кантора", [true, false, false, false]], ["Крест Вичека", [false, false, true, true]], ["Углы и центр", [true, false, false, true]]].forEach(([nm, k]) => {
+  const b = Object.assign(document.createElement("button"), { className: "btn", type: "button", textContent: nm });
+  b.addEventListener("click", () => { st.keep = k.slice(); rebuild(); });
+  $("presets").appendChild(b);
+});
+[["none", "Без разреза"], ["axis", "Вдоль оси"], ["diag", "По диагонали"]].forEach(([c, t]) => {
+  const b = Object.assign(document.createElement("button"), { className: "btn", type: "button", textContent: t });
+  b.dataset.c = c; b.setAttribute("aria-pressed", String(c === st.cut));
+  b.addEventListener("click", () => {
+    st.cut = c; $("cuts").querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", String(x.dataset.c === c)));
+    if (c !== "none") { st.spin = false; $("spin").checked = false; }
+    applyCut();
+  });
+  $("cuts").appendChild(b);
+});
+$("cut").addEventListener("input", e => { st.cutPos = e.target.value / 100; applyCut(); });
+$("spin").addEventListener("change", e => { st.spin = e.target.checked; });
+$("reset").addEventListener("click", () => { camera.position.copy(HOME); controls.target.set(0, 0, 0); group.rotation.set(0, 0, 0); });
+
+function resize() {
+  const w = cv.clientWidth, h = cv.clientHeight; if (!w || !h) return;
+  renderer.setSize(w, h, false); camera.aspect = w / h; camera.fov = w / h < 0.9 ? 50 : 35; camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(cv);
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const clock = new THREE.Clock();
+function tick() {
+  const dt = Math.min(clock.getDelta(), 0.05);
+  if (st.spin && !reduce) group.rotation.y += dt * 0.15;
+  // плоскость разреза поворачиваем вместе с губкой
+  if (st.cut !== "none") { applyCutWorld(); }
+  controls.update(); renderer.render(scene, camera);
+  requestAnimationFrame(tick);
+}
+function applyCutWorld() {
+  const nrm = st.cut === "axis" ? new THREE.Vector3(-1, 0, 0) : new THREE.Vector3(-1, -1, -1).normalize();
+  const range = st.cut === "axis" ? 0.5 : Math.sqrt(3) / 2;
+  plane.normal.copy(nrm.applyQuaternion(group.quaternion)); plane.constant = st.cutPos * range;
+}
+
+$("nOut").textContent = st.n;
+rebuild(); applyCut(); resize(); tick();
+window.__mengerReady = true;
+</script>
+<script>
+  setTimeout(() => {
+    if (window.__mengerReady) return;
+    const v = document.querySelector(".view");
+    v.appendChild(Object.assign(document.createElement("div"), { className: "err", textContent: "Не удалось загрузить 3D-библиотеку. Проверьте подключение к интернету и обновите страницу." }));
+  }, 8000);
+</script>
+</body>
+</html>

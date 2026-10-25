@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Кривая Гильберта</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600&family=JetBrains+Mono:wght@400;600&family=Unbounded:wght@500;700&display=swap">
+<link rel="stylesheet" href="../fractal.css">
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="crumbs"><a href="../../">← Все примеры</a><a href="../">Фракталы</a></div>
+    <h1>Кривая Гильберта</h1>
+    <span class="formula-top">линия, которая заполняет квадрат</span>
+  </header>
+
+  <div class="main">
+    <div class="view">
+      <canvas id="cv" aria-label="Кривая, заполняющая квадрат"></canvas>
+      <div class="overlay"><span id="hoverInfo">наведите на квадрат, чтобы узнать номер точки на кривой</span><span id="info"></span></div>
+    </div>
+
+    <aside class="panel">
+      <div class="group">
+        <p class="label">Кривая</p>
+        <div class="row" id="kinds"></div>
+      </div>
+      <div class="group">
+        <div class="slider"><div class="slider-row"><label for="n">Порядок n</label><output id="nOut"></output></div>
+          <input type="range" id="n" min="1" max="8" step="1" value="4"></div>
+        <div class="slider"><div class="slider-row"><label for="prog">Нарисовано</label><output id="progOut"></output></div>
+          <input type="range" id="prog" min="0" max="1000" step="1" value="1000"></div>
+        <div class="row"><button class="btn primary" id="play" type="button">Нарисовать заново</button></div>
+        <div class="toggles">
+          <label><input type="checkbox" id="grad" checked> Цвет вдоль кривой</label>
+          <label><input type="checkbox" id="grid"> Сетка клеток</label>
+          <label><input type="checkbox" id="prev"> Предыдущий порядок</label>
+        </div>
+      </div>
+      <div class="stats" id="stats"></div>
+    </aside>
+  </div>
+
+  <section class="about">
+    <div class="card">
+      <h2>Что это</h2>
+      <p>Разделим квадрат на 4 клетки и обойдём их по букве «П». Затем каждую клетку снова разделим на 4 и обойдём уже 16 клеток. Четыре уменьшенные копии кривой повёрнуты так, чтобы конец одной стыковался с началом следующей. С каждым порядком линия проходит через всё более мелкие клетки.</p>
+      <p>В пределе получается непрерывная кривая, которая проходит через <b>каждую</b> точку квадрата. Одномерный отрезок [0; 1] отображается на весь двумерный квадрат.</p>
+      <span class="f">длина: 2ⁿ − 1/2ⁿ → ∞,   размерность: 2</span>
+      <p>Главное практическое свойство — близкие номера на кривой дают близкие точки квадрата. Наведите мышь на квадрат и посмотрите, как меняется номер.</p>
+    </div>
+    <div class="card">
+      <h2>История</h2>
+      <ul class="timeline">
+        <li><b>1878</b><span>Георг Кантор доказывает, что точек на отрезке столько же, сколько в квадрате. Но его соответствие не непрерывное.</span></li>
+        <li><b>1890</b><span>Джузеппе Пеано строит первую непрерывную кривую, заполняющую квадрат, — формулами, без единого рисунка.</span></li>
+        <li><b>1891</b><span>Давид Гильберт предлагает более простой вариант и впервые рисует шаги построения.</span></li>
+        <li><b>1900</b><span>Элиаким Мур строит замкнутый вариант кривой Гильберта: конец сходится с началом.</span></li>
+        <li><b>Сегодня</b><span>Кривые Гильберта используют в базах данных и картографических сервисах, чтобы близкие места хранились рядом, а также при сжатии и обработке изображений.</span></li>
+      </ul>
+    </div>
+    <div class="card">
+      <h2>Числа и факты</h2>
+      <div class="facts">
+        <span>Клеток у Гильберта и Мура</span><span class="v">4ⁿ</span>
+        <span>Клеток у Пеано</span><span class="v">9ⁿ</span>
+        <span>Размерность</span><span class="v">2</span>
+        <span>Кривая Мура</span><span class="v">замкнутая</span>
+      </div>
+      <p style="margin-top:10px">Кривая Пеано делит квадрат не на 4, а на 9 частей и обходит их змейкой. Каждая её копия меньше целого в 3 раза: 9 копий с уменьшением в 3 раза дают размерность log 9 / log 3 = 2.</p>
+    </div>
+  </section>
+
+  <nav class="more" data-current="hilbert" aria-label="Другие фракталы"></nav>
+</div>
+
+<script src="../common.js"></script>
+<script>
+(function () {
+  const $ = id => document.getElementById(id), F = Fractal;
+  const cv = $("cv"), g = cv.getContext("2d");
+  // L-системы: F — шаг, + − — поворот на 90°, остальные буквы управляют рекурсией
+  const KINDS = {
+    hilbert: { name: "Гильберт", axiom: "A", rules: { A: "+BF-AFA-FB+", B: "-AF+BFB+FA-" }, base: 2, max: 8 },
+    moore: { name: "Мур", axiom: "LFL+F+LFL", rules: { L: "-RF+LFL+FR-", R: "+LF-RFR-FL+" }, base: 2, max: 8, shift: 1 },
+    peano: { name: "Пеано", axiom: "X", rules: { X: "XFYFX+F+YFXFY-F-XFYFX", Y: "YFXFY-F-XFYFX+F+YFXFY" }, base: 3, max: 5 },
+  };
+  const st = { kind: "hilbert", n: 4, prog: 1, grad: true, grid: false, prev: false, hover: -1 };
+  let dpr = 1, pts = [], prevPts = [], side = 1, anim = null;
+
+  function build(kind, n) {
+    const K = KINDS[kind];
+    const order = K.shift ? n - 1 : n;             // у Мура аксиома уже содержит 4 копии
+    let s = K.axiom;
+    for (let k = 0; k < order; k++) s = s.replace(/[A-Z]/g, ch => K.rules[ch] || ch);
+    const out = [[0, 0]]; let x = 0, y = 0, d = 0;
+    const DX = [1, 0, -1, 0], DY = [0, 1, 0, -1];
+    for (const ch of s) {
+      if (ch === "F") { x += DX[d]; y += DY[d]; out.push([x, y]); }
+      else if (ch === "+") d = (d + 1) % 4; else if (ch === "-") d = (d + 3) % 4;
+    }
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    out.forEach(([a, b]) => { x0 = Math.min(x0, a); y0 = Math.min(y0, b); x1 = Math.max(x1, a); y1 = Math.max(y1, b); });
+    const cells = Math.pow(K.base, n), span = Math.max(x1 - x0, y1 - y0) || 1;
+    // вписываем в квадрат [0,1]²: вершины — центры клеток
+    return out.map(([a, b]) => [((a - x0) / span * (cells - 1) + 0.5) / cells, ((b - y0) / span * (cells - 1) + 0.5) / cells]);
+  }
+
+  function geom() {
+    const W = cv.width, H = cv.height, s = Math.min(W, H) - 40 * dpr;
+    return { s, ox: (W - s) / 2, oy: (H - s) / 2 };
+  }
+  function draw() {
+    if (pts.length < 2) return;
+    const W = cv.width, H = cv.height, { s, ox, oy } = geom(), K = KINDS[st.kind];
+    g.setTransform(1, 0, 0, 1, 0, 0); g.fillStyle = "#0d1117"; g.fillRect(0, 0, W, H);
+    const X = u => ox + u * s, Y = v => oy + (1 - v) * s;
+    g.strokeStyle = "rgba(230,235,242,0.35)"; g.lineWidth = 1 * dpr; g.strokeRect(ox, oy, s, s);
+    const cells = Math.pow(K.base, st.n);
+    if (st.grid && cells <= 128) {
+      g.strokeStyle = "rgba(230,235,242,0.12)"; g.beginPath();
+      for (let i = 1; i < cells; i++) { const t = i / cells; g.moveTo(X(t), Y(0)); g.lineTo(X(t), Y(1)); g.moveTo(X(0), Y(t)); g.lineTo(X(1), Y(t)); }
+      g.stroke();
+    }
+    if (st.prev && prevPts.length > 1) {
+      g.strokeStyle = "rgba(255,207,77,0.55)"; g.lineWidth = 2 * dpr; g.setLineDash([6 * dpr, 5 * dpr]);
+      g.beginPath(); prevPts.forEach(([u, v], i) => i ? g.lineTo(X(u), Y(v)) : g.moveTo(X(u), Y(v))); g.stroke(); g.setLineDash([]);
+    }
+    const last = Math.max(1, Math.round(st.prog * (pts.length - 1)));
+    const lw = Math.max(1, Math.min(4, s / cells * 0.28)) ; g.lineWidth = lw; g.lineCap = "round"; g.lineJoin = "round";
+    const bands = st.grad ? 96 : 1, per = Math.ceil((pts.length - 1) / bands);
+    for (let b = 0; b < bands; b++) {
+      const i0 = b * per, i1 = Math.min(last, (b + 1) * per);
+      if (i0 >= i1) break;
+      g.strokeStyle = st.grad ? `hsl(${(b / bands) * 300 + 190}, 80%, 63%)` : "#8fc2ff";
+      g.beginPath(); g.moveTo(X(pts[i0][0]), Y(pts[i0][1]));
+      for (let i = i0 + 1; i <= i1; i++) g.lineTo(X(pts[i][0]), Y(pts[i][1]));
+      g.stroke();
+    }
+    // начало и текущий конец
+    g.fillStyle = "#fff"; g.beginPath(); g.arc(X(pts[0][0]), Y(pts[0][1]), 4 * dpr, 0, 7); g.fill();
+    if (last < pts.length - 1) { g.fillStyle = "#ffcf4d"; g.beginPath(); g.arc(X(pts[last][0]), Y(pts[last][1]), 4 * dpr, 0, 7); g.fill(); }
+    if (st.hover >= 0) {
+      const [u, v] = pts[st.hover], cs = s / cells;
+      g.strokeStyle = "#fff"; g.lineWidth = 2 * dpr; g.strokeRect(X(u) - cs / 2, Y(v) - cs / 2, cs, cs);
+      // соседи по номеру — рядом и в квадрате
+      [-1, 1].forEach(dk => { const j = st.hover + dk; if (j >= 0 && j < pts.length) { g.fillStyle = "#ffcf4d"; g.beginPath(); g.arc(X(pts[j][0]), Y(pts[j][1]), 3.5 * dpr, 0, 7); g.fill(); } });
+    }
+    $("progOut").textContent = Math.round(st.prog * 100) + " %";
+    $("info").textContent = `${(pts.length).toLocaleString("ru-RU")} клеток`;
+  }
+
+  function stats() {
+    const K = KINDS[st.kind], cells = Math.pow(K.base, st.n), len = (cells * cells - 1) / cells;
+    $("stats").innerHTML = `
+      <span class="k">Клеток</span><span class="v">${(cells * cells).toLocaleString("ru-RU")} = ${cells} × ${cells}</span>
+      <span class="k">Отрезков</span><span class="v">${(cells * cells - 1).toLocaleString("ru-RU")}</span>
+      <span class="k">Длина (сторона квадрата = 1)</span><span class="v">${F.fmt(len, 3)}</span>
+      <span class="k">Каждая копия меньше целого в</span><span class="v">${K.base} раза</span>
+      <span class="k">Размерность</span><span class="v">log ${K.base * K.base} / log ${K.base} = 2</span>`;
+  }
+  function rebuild() {
+    pts = build(st.kind, st.n);
+    prevPts = st.n > 1 ? build(st.kind, st.n - 1) : [];
+    st.hover = -1; stats(); draw();
+  }
+
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function play() {
+    cancelAnimationFrame(anim);
+    if (reduce) { st.prog = 1; $("prog").value = 1000; draw(); return; }
+    const t0 = performance.now(), dur = 2500 + 300 * st.n;
+    const tick = now => { st.prog = Math.min(1, (now - t0) / dur); $("prog").value = Math.round(st.prog * 1000); draw(); if (st.prog < 1) anim = requestAnimationFrame(tick); };
+    anim = requestAnimationFrame(tick);
+  }
+  $("play").addEventListener("click", play);
+  $("n").addEventListener("input", e => { st.n = +e.target.value; $("nOut").textContent = st.n; rebuild(); });
+  $("prog").addEventListener("input", e => { cancelAnimationFrame(anim); st.prog = +e.target.value / 1000; draw(); });
+  $("grad").addEventListener("change", e => { st.grad = e.target.checked; draw(); });
+  $("grid").addEventListener("change", e => { st.grid = e.target.checked; draw(); });
+  $("prev").addEventListener("change", e => { st.prev = e.target.checked; draw(); });
+  Object.entries(KINDS).forEach(([k, K]) => {
+    const b = Object.assign(document.createElement("button"), { className: "btn", type: "button", textContent: K.name });
+    b.dataset.k = k; b.setAttribute("aria-pressed", String(k === st.kind));
+    b.addEventListener("click", () => {
+      st.kind = k; $("kinds").querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", String(x.dataset.k === k)));
+      $("n").max = K.max; if (st.n > K.max) st.n = K.max; if (k === "moore" && st.n < 1) st.n = 1;
+      $("n").value = st.n; $("nOut").textContent = st.n;
+      document.querySelector("h1").textContent = k === "peano" ? "Кривая Пеано" : k === "moore" ? "Кривая Мура" : "Кривая Гильберта";
+      rebuild();
+    });
+    $("kinds").appendChild(b);
+  });
+
+  // номер клетки под курсором
+  cv.addEventListener("pointermove", e => {
+    const r = cv.getBoundingClientRect(), { s, ox, oy } = geom();
+    const u = ((e.clientX - r.left) * dpr - ox) / s, v = 1 - ((e.clientY - r.top) * dpr - oy) / s;
+    if (u < 0 || u > 1 || v < 0 || v > 1) { st.hover = -1; $("hoverInfo").textContent = "наведите на квадрат, чтобы узнать номер точки на кривой"; draw(); return; }
+    const cells = Math.pow(KINDS[st.kind].base, st.n);
+    const cx = Math.min(cells - 1, Math.floor(u * cells)), cy = Math.min(cells - 1, Math.floor(v * cells));
+    const k = pts.findIndex(([a, b]) => Math.floor(a * cells) === cx && Math.floor(b * cells) === cy);
+    st.hover = k;
+    if (k >= 0) $("hoverInfo").textContent = `клетка № ${(k + 1).toLocaleString("ru-RU")} из ${pts.length.toLocaleString("ru-RU")} · t = ${F.fmt(k / (pts.length - 1), 4)}`;
+    draw();
+  });
+  cv.addEventListener("pointerleave", () => { st.hover = -1; draw(); });
+
+  F.fitCanvas(cv, (w, h, d) => { dpr = d; draw(); });
+  $("nOut").textContent = st.n;
+  rebuild();
+})();
+</script>
+</body>
+</html>

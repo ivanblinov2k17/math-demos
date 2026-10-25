@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Кривая дракона</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600&family=JetBrains+Mono:wght@400;600&family=Unbounded:wght@500;700&display=swap">
+<link rel="stylesheet" href="../fractal.css">
+<style>
+  .folds { font-family: var(--font-mono); font-size: 13px; line-height: 1.6; word-break: break-all; color: var(--muted); }
+  .folds b { color: #e8a12c; font-weight: 600; } .folds i { color: var(--accent); font-style: normal; font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="crumbs"><a href="../../">← Все примеры</a><a href="../">Фракталы</a></div>
+    <h1>Кривая дракона</h1>
+    <span class="formula-top">согнуть ленту пополам n раз и раскрыть</span>
+  </header>
+
+  <div class="main">
+    <div class="view">
+      <canvas id="cv" aria-label="Кривая дракона"></canvas>
+      <div class="tools"><button class="btn" id="reset" type="button">Весь вид</button></div>
+      <div class="overlay"><span>колесо/щипок — масштаб · тяните — сдвиг</span><span id="info"></span></div>
+    </div>
+
+    <aside class="panel">
+      <div class="group">
+        <p class="label">Вид</p>
+        <div class="row" id="kinds"></div>
+      </div>
+      <div class="group">
+        <div class="slider"><div class="slider-row"><label for="n">Шаг n</label><output id="nOut"></output></div>
+          <input type="range" id="n" min="0" max="16" step="1" value="10"></div>
+        <div class="slider" id="phiBox"><div class="slider-row"><label for="phi">Угол раскрытия сгиба</label><output id="phiOut"></output></div>
+          <input type="range" id="phi" min="0" max="180" step="1" value="90"></div>
+        <div class="row" id="animRow">
+          <button class="btn primary" id="unfold" type="button">Развернуть ленту</button>
+          <button class="btn" id="unfoldLast" type="button">Развернуть последний сгиб</button>
+        </div>
+        <div class="toggles">
+          <label><input type="checkbox" id="grad" checked> Цвет вдоль кривой</label>
+          <label id="fourBox"><input type="checkbox" id="four"> Четыре дракона</label>
+        </div>
+      </div>
+      <div class="stats" id="stats"></div>
+      <div class="group" id="foldBox">
+        <p class="label">Сгибы ленты: Л — влево, П — вправо</p>
+        <div class="folds" id="folds"></div>
+      </div>
+    </aside>
+  </div>
+
+  <section class="about">
+    <div class="card">
+      <h2>Что это</h2>
+      <p>Возьмите полоску бумаги и согните пополам, потом ещё раз пополам, и так n раз. Раскройте так, чтобы каждый сгиб стал прямым углом. Получится кривая дракона.</p>
+      <p>То же построение без бумаги: берём кривую, поворачиваем её копию на 90° вокруг конца и приставляем. Число отрезков каждый раз удваивается:</p>
+      <span class="f">Dₙ₊₁ = Dₙ + (Dₙ, повёрнутая на 90° вокруг конца)</span>
+      <p>Кривая никогда не пересекает себя, хотя касается себя в вершинах. А четыре дракона, выходящие из одной точки, плотно замощают плоскость без зазоров.</p>
+    </div>
+    <div class="card">
+      <h2>История</h2>
+      <ul class="timeline">
+        <li><b>1938</b><span>Поль Леви изучает кривую из прямоугольных уголков, которую теперь называют кривой Леви. У неё тоже размерность 2.</span></li>
+        <li><b>1966</b><span>Физики NASA Джон Хайвей, Брюс Бэнкс и Уильям Хартер исследуют сгибание бумажной ленты и находят дракона.</span></li>
+        <li><b>1967</b><span>Мартин Гарднер рассказывает о драконе в рубрике «Математические игры» журнала Scientific American.</span></li>
+        <li><b>1970</b><span>Чандлер Дэвис и Дональд Кнут публикуют подробный разбор свойств дракона и связывают его с системами счисления.</span></li>
+        <li><b>1990</b><span>В романе Майкла Крайтона «Парк юрского периода» части книги открываются всё более сложными итерациями дракона.</span></li>
+      </ul>
+    </div>
+    <div class="card">
+      <h2>Числа и факты</h2>
+      <div class="facts">
+        <span>Отрезков на шаге n</span><span class="v">2ⁿ</span>
+        <span>Размер растёт за шаг в</span><span class="v">√2 раза</span>
+        <span>Размерность кривой</span><span class="v">2</span>
+        <span>Размерность границы</span><span class="v">≈ 1,5236</span>
+      </div>
+      <p style="margin-top:10px">Направление k-го сгиба легко вычислить: запишите k = 2ᵐ·(2j + 1). Если j чётное, сгиб в одну сторону, если нечётное — в другую. Это «последовательность складывания бумаги».</p>
+    </div>
+  </section>
+
+  <nav class="more" data-current="dragon" aria-label="Другие фракталы"></nav>
+</div>
+
+<script src="../common.js"></script>
+<script>
+(function () {
+  const $ = id => document.getElementById(id), F = Fractal;
+  const cv = $("cv"), g = cv.getContext("2d");
+  const KINDS = {
+    heighway: { name: "Дракон Хайвея", max: 16 },
+    twin: { name: "Дракон-близнец", max: 15 },
+    ter: { name: "Тердракон", max: 10, rule: "F+F-F", angle: 120 },
+    levy: { name: "Кривая Леви", max: 15, rule: "+F--F+", angle: 45 },
+  };
+  const st = { kind: "heighway", n: 10, phi: 90, grad: true, four: false, anim: null };
+  const view = { zoom: 1, ox: 0, oy: 0 };
+  let dpr = 1, fit = null;
+
+  // Дракон разворачиванием: копия, повёрнутая на угол φ вокруг последней точки
+  function unfold(n, phi, lastT = 1) {
+    let pts = [[0, 0], [1, 0]];
+    for (let k = 1; k <= n; k++) {
+      const a = -(k === n ? phi * lastT : phi) * Math.PI / 180, c = Math.cos(a), s = Math.sin(a);
+      const [ex, ey] = pts[pts.length - 1], add = [];
+      for (let i = pts.length - 2; i >= 0; i--) { const dx = pts[i][0] - ex, dy = pts[i][1] - ey; add.push([ex + dx * c - dy * s, ey + dx * s + dy * c]); }
+      pts = pts.concat(add);
+    }
+    return pts;
+  }
+  // L-система: F — шаг вперёд, + и − — поворот на заданный угол
+  function lsystem(rule, angle, n) {
+    let s = "F";
+    for (let k = 0; k < n; k++) s = s.replace(/F/g, rule);
+    const pts = [[0, 0]]; let x = 0, y = 0, a = 0; const da = angle * Math.PI / 180;
+    for (const ch of s) {
+      if (ch === "F") { x += Math.cos(a); y += Math.sin(a); pts.push([x, y]); }
+      else if (ch === "+") a += da; else if (ch === "-") a -= da;
+    }
+    return pts;
+  }
+  function curves(n, t = 1) {
+    const K = KINDS[st.kind];
+    if (K.rule) return [lsystem(K.rule, K.angle, n)];
+    const base = unfold(n, st.phi, t);
+    const rot = (pts, deg) => { const a = deg * Math.PI / 180, c = Math.cos(a), s = Math.sin(a); return pts.map(([x, y]) => [x * c - y * s, x * s + y * c]); };
+    if (st.kind === "twin") return [base, rot(base, 180)];
+    if (st.four) return [base, rot(base, 90), rot(base, 180), rot(base, 270)];
+    return [base];
+  }
+  const COPY = ["#5ea8ff", "#ff6b6b", "#62d698", "#ffcf4d"];
+
+  function computeFit() {
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+    curves(st.n).forEach(p => p.forEach(([x, y]) => { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); }));
+    fit = { x0, x1, y0, y1 };
+  }
+  function draw() {
+    const W = cv.width, H = cv.height;
+    g.setTransform(1, 0, 0, 1, 0, 0); g.fillStyle = "#0d1117"; g.fillRect(0, 0, W, H);
+    if (!fit) computeFit();
+    const a = st.anim, n = a ? a.level : st.n, t = a ? a.t : 1;
+    const cs = curves(n, t);
+    const pad = 30 * dpr, bw = Math.max(fit.x1 - fit.x0, 1), bh = Math.max(fit.y1 - fit.y0, 1);
+    const sc = Math.min((W - 2 * pad) / bw, (H - 2 * pad) / bh) * view.zoom;
+    const cx = (fit.x0 + fit.x1) / 2, cy = (fit.y0 + fit.y1) / 2;
+    const X = x => W / 2 + view.ox * dpr + (x - cx) * sc, Y = y => H / 2 + view.oy * dpr - (y - cy) * sc;
+    g.lineWidth = Math.max(1, Math.min(3, sc * 0.35)) * dpr; g.lineCap = "round"; g.lineJoin = "round";
+    cs.forEach((pts, ci) => {
+      const bands = st.grad && cs.length === 1 ? 64 : 1, per = Math.ceil((pts.length - 1) / bands);
+      for (let b = 0; b < bands; b++) {
+        const i0 = b * per, i1 = Math.min(pts.length - 1, (b + 1) * per);
+        if (i0 >= i1) break;
+        g.strokeStyle = bands > 1 ? `hsl(${200 + 160 * b / bands}, 80%, 65%)` : COPY[ci % 4];
+        g.beginPath(); g.moveTo(X(pts[i0][0]), Y(pts[i0][1]));
+        for (let i = i0 + 1; i <= i1; i++) g.lineTo(X(pts[i][0]), Y(pts[i][1]));
+        g.stroke();
+      }
+    });
+    // начало ленты
+    g.fillStyle = "#fff"; g.beginPath(); g.arc(X(0), Y(0), 3.5 * dpr, 0, 7); g.fill();
+    $("info").textContent = (a ? `разворачиваем сгиб ${a.level} · ` : "") + (view.zoom > 1.01 ? `увеличение ×${F.fmt(view.zoom, 1)}` : "");
+  }
+
+  function stats() {
+    const K = KINDS[st.kind], n = st.n;
+    const segs = K.rule ? Math.pow(K.rule.split("F").length - 1, n) : Math.pow(2, n);
+    const copies = st.kind === "twin" ? 2 : (st.four && !K.rule ? 4 : 1);
+    $("stats").innerHTML = `
+      <span class="k">Отрезков в одной кривой</span><span class="v">${segs.toLocaleString("ru-RU")}</span>
+      ${copies > 1 ? `<span class="k">Кривых</span><span class="v">${copies}</span>` : ""}
+      <span class="k">Размах (в длинах отрезка)</span><span class="v">${F.fmt(fit.x1 - fit.x0, 1)} × ${F.fmt(fit.y1 - fit.y0, 1)}</span>
+      <span class="k">Размерность кривой</span><span class="v">2</span>`;
+    // последовательность сгибов (только для бумажных драконов)
+    const paper = !K.rule;
+    $("foldBox").hidden = !paper;
+    if (paper) {
+      const N = Math.min(Math.pow(2, n) - 1, 127);
+      let s = "";
+      for (let k = 1; k <= N; k++) { let j = k; while (j % 2 === 0) j /= 2; const left = ((j - 1) / 2) % 2 === 0; s += left ? "<b>Л</b>" : "<i>П</i>"; }
+      $("folds").innerHTML = (s || "—") + (Math.pow(2, n) - 1 > N ? " …" : "") + `<br>всего сгибов: ${(Math.pow(2, n) - 1).toLocaleString("ru-RU")}`;
+    }
+  }
+
+  // Анимация разворачивания
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let raf = null;
+  function animate(fromLevel) {
+    if (KINDS[st.kind].rule) return;
+    cancelAnimationFrame(raf);
+    if (reduce) { st.anim = null; draw(); return; }
+    let level = Math.max(1, fromLevel), t0 = performance.now();
+    const dur = l => Math.max(250, 900 - l * 40);
+    const tick = now => {
+      let t = (now - t0) / dur(level);
+      if (t >= 1) { level++; t0 = now; t = 0; if (level > st.n) { st.anim = null; draw(); return; } }
+      st.anim = { level, t: 1 - Math.pow(1 - t, 2) };
+      draw(); raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+  }
+  $("unfold").addEventListener("click", () => { if (st.n > 0) animate(1); });
+  $("unfoldLast").addEventListener("click", () => { if (st.n > 0) animate(st.n); });
+
+  function stop() { cancelAnimationFrame(raf); st.anim = null; }
+  function rebuild() { stop(); fit = null; view.zoom = 1; view.ox = 0; view.oy = 0; computeFit(); draw(); stats(); }
+  $("n").addEventListener("input", e => { st.n = +e.target.value; $("nOut").textContent = st.n; rebuild(); });
+  F.bindSlider("phi", v => { st.phi = v; rebuild(); }, v => v + "°");
+  $("grad").addEventListener("change", e => { st.grad = e.target.checked; draw(); });
+  $("four").addEventListener("change", e => { st.four = e.target.checked; rebuild(); });
+  $("reset").addEventListener("click", () => { view.zoom = 1; view.ox = 0; view.oy = 0; draw(); });
+
+  Object.entries(KINDS).forEach(([k, K]) => {
+    const b = Object.assign(document.createElement("button"), { className: "btn", type: "button", textContent: K.name });
+    b.dataset.k = k; b.setAttribute("aria-pressed", String(k === st.kind));
+    b.addEventListener("click", () => {
+      st.kind = k;
+      $("kinds").querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", String(x.dataset.k === k)));
+      $("n").max = K.max; if (st.n > K.max) st.n = K.max; $("n").value = st.n; $("nOut").textContent = st.n;
+      const paper = !K.rule;
+      $("phiBox").hidden = !paper; $("animRow").hidden = !paper; $("fourBox").hidden = k !== "heighway";
+      rebuild();
+    });
+    $("kinds").appendChild(b);
+  });
+
+  // масштаб и сдвиг
+  function zoomAt(x, y, f) {
+    const r = cv.getBoundingClientRect(), mx = x - r.left - r.width / 2, my = y - r.top - r.height / 2;
+    const nz = Math.min(2000, Math.max(1, view.zoom * f)), k = nz / view.zoom;
+    view.ox = mx - (mx - view.ox) * k; view.oy = my - (my - view.oy) * k; view.zoom = nz;
+    if (nz === 1) { view.ox = 0; view.oy = 0; }
+    draw();
+  }
+  cv.addEventListener("wheel", e => { e.preventDefault(); zoomAt(e.clientX, e.clientY, Math.exp(-e.deltaY * 0.0015)); }, { passive: false });
+  cv.addEventListener("dblclick", e => zoomAt(e.clientX, e.clientY, e.shiftKey ? 0.5 : 2));
+  const ptrs = new Map(); let pinch = null;
+  cv.addEventListener("pointerdown", e => { cv.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, [e.clientX, e.clientY]); pinch = null; });
+  cv.addEventListener("pointermove", e => {
+    if (!ptrs.has(e.pointerId)) return;
+    const p = ptrs.get(e.pointerId); ptrs.set(e.pointerId, [e.clientX, e.clientY]);
+    if (ptrs.size === 1) { view.ox += e.clientX - p[0]; view.oy += e.clientY - p[1]; draw(); }
+    else if (ptrs.size === 2) { const [a, b] = [...ptrs.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]); if (pinch) zoomAt((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, d / pinch); pinch = d; }
+  });
+  const up = e => { ptrs.delete(e.pointerId); pinch = null; };
+  cv.addEventListener("pointerup", up); cv.addEventListener("pointercancel", up);
+
+  F.fitCanvas(cv, (w, h, d) => { dpr = d; draw(); });
+  $("nOut").textContent = st.n;
+  computeFit(); stats();
+})();
+</script>
+</body>
+</html>

@@ -50,12 +50,15 @@
       <h2>Размерности фракталов раздела</h2>
       <div class="tablewrap"><table>
         <tr><th>Фрактал</th><th>Как считается</th><th>D</th><th style="width:30%"></th></tr>
-        <tr><td>Кривая Коха</td><td>4 копии, ×⅓</td><td class="n">1,262</td><td><div class="bar" style="width:63.1%"></div></td></tr>
-        <tr><td>Треугольник Серпинского</td><td>3 копии, ×½</td><td class="n">1,585</td><td><div class="bar" style="width:79.2%"></div></td></tr>
-        <tr><td>Ковёр Серпинского</td><td>8 копий, ×⅓</td><td class="n">1,893</td><td><div class="bar" style="width:94.6%"></div></td></tr>
-        <tr><td>Граница множества Мандельброта</td><td>доказал Шишикура, 1991</td><td class="n">2</td><td><div class="bar" style="width:100%"></div></td></tr>
+        <tr><td>Кривая Коха</td><td>4 копии, ×⅓</td><td class="n">1,262</td><td><div class="bar" style="width:42.1%"></div></td></tr>
+        <tr><td>Граница кривой дракона</td><td>вычислено численно</td><td class="n">1,524</td><td><div class="bar" style="width:50.8%"></div></td></tr>
+        <tr><td>Треугольник Серпинского</td><td>3 копии, ×½</td><td class="n">1,585</td><td><div class="bar" style="width:52.8%"></div></td></tr>
+        <tr><td>Ковёр Серпинского</td><td>8 копий, ×⅓</td><td class="n">1,893</td><td><div class="bar" style="width:63.1%"></div></td></tr>
+        <tr><td>Кривая Гильберта</td><td>4 копии, ×½</td><td class="n">2</td><td><div class="bar" style="width:66.7%"></div></td></tr>
+        <tr><td>Граница множества Мандельброта</td><td>доказал Шишикура, 1991</td><td class="n">2</td><td><div class="bar" style="width:66.7%"></div></td></tr>
+        <tr><td>Губка Менгера</td><td>20 копий, ×⅓</td><td class="n">2,727</td><td><div class="bar" style="width:90.9%"></div></td></tr>
       </table></div>
-      <p style="margin-top:10px">Полоса показывает размерность от 0 до 2.</p>
+      <p style="margin-top:10px">Полоса показывает размерность от 0 до 3.</p>
     </div>
   </section>
 </div>
@@ -70,6 +73,10 @@
     "sierpinski": ["Вырезаем средние треугольники — или прыгаем к случайным вершинам.", "D ≈ 1,585"],
     "barnsley-fern": ["Четыре аффинных преобразования, 28 чисел и случайность рисуют настоящий папоротник.", "4 преобразования"],
     "pythagoras-tree": ["Квадраты на катетах прямоугольного треугольника, повторённые много раз.", "2ⁿ⁺¹ − 1 квадратов"],
+    "dragon": ["Сложите ленту пополам n раз и раскройте под прямым углом. Четыре дракона замощают плоскость.", "граница: D ≈ 1,524"],
+    "newton": ["Метод Ньютона ищет корни. Раскрасим плоскость по тому, какой корень нашёлся.", "корни можно двигать"],
+    "hilbert": ["Непрерывная линия, которая проходит через каждую точку квадрата.", "D = 2"],
+    "menger": ["Из куба выбрасываем центр и центры граней, и так бесконечно. В 3D, с разрезом.", "D ≈ 2,727"],
   };
   const tiles = document.getElementById("tiles");
   Fractal.PAGES.forEach(p => {
@@ -113,6 +120,48 @@
         rec(dx, dy, ex, ey, k + 1); rec(ex, ey, cx, cy, k + 1);
       };
       rec(-0.5, 0, 0.5, 0, 0);
+    },
+    dragon(g, w, h) {
+      let pts = [[0, 0], [1, 0]];
+      for (let k = 0; k < 12; k++) { const [ex, ey] = pts[pts.length - 1], add = []; for (let i = pts.length - 2; i >= 0; i--) { const dx = pts[i][0] - ex, dy = pts[i][1] - ey; add.push([ex + dy, ey - dx]); } pts = pts.concat(add); }
+      let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9; pts.forEach(([x, y]) => { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); });
+      const s = Math.min((w - 16) / (x1 - x0), (h - 16) / (y1 - y0)), ox = (w - (x1 - x0) * s) / 2 - x0 * s, oy = (h + (y1 - y0) * s) / 2 + y0 * s;
+      const per = Math.ceil(pts.length / 32);
+      for (let b = 0; b < 32; b++) { g.strokeStyle = `hsl(${200 + 5 * b}, 80%, 65%)`; g.beginPath();
+        for (let i = b * per; i <= Math.min(pts.length - 1, (b + 1) * per); i++) { const X = ox + pts[i][0] * s, Y = oy - pts[i][1] * s; i === b * per ? g.moveTo(X, Y) : g.lineTo(X, Y); } g.stroke(); }
+    },
+    newton(g, w, h) {
+      const R = [[1, 0], [-0.5, Math.sqrt(3) / 2], [-0.5, -Math.sqrt(3) / 2]], C = [[235, 87, 87], [86, 168, 255], [255, 199, 66]];
+      const img = g.createImageData(w, h);
+      for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
+        let x = (i - w / 2) * 3 / h, y = -(j - h / 2) * 3 / h, k = -1, n = 0;
+        for (; n < 40 && k < 0; n++) {
+          // z ← z − (z³ − 1)/(3z²)
+          const x2 = x * x - y * y, y2 = 2 * x * y, d = 3 * (x2 * x2 + y2 * y2) || 1e-9;
+          const nx = x * x2 - y * y2 - 1, ny = x * y2 + y * x2;
+          x -= (nx * x2 + ny * y2) / d; y -= (ny * x2 - nx * y2) / d;
+          k = R.findIndex(r => (x - r[0]) ** 2 + (y - r[1]) ** 2 < 1e-4);
+        }
+        const o = (j * w + i) * 4, c = k >= 0 ? C[k] : [8, 10, 16], t = 0.3 + 0.7 * Math.pow(0.93, n);
+        img.data[o] = c[0] * t; img.data[o + 1] = c[1] * t; img.data[o + 2] = c[2] * t; img.data[o + 3] = 255;
+      }
+      g.putImageData(img, 0, 0);
+    },
+    hilbert(g, w, h) {
+      const n = 16, pts = [];
+      for (let d = 0; d < n * n; d++) { let x = 0, y = 0, t = d;
+        for (let s = 1; s < n; s *= 2) { const rx = 1 & (t / 2), ry = 1 & (t ^ rx); if (ry === 0) { if (rx === 1) { x = s - 1 - x; y = s - 1 - y; } [x, y] = [y, x]; } x += s * rx; y += s * ry; t = Math.floor(t / 4); }
+        pts.push([x, y]); }
+      const s = (h - 20) / (n - 1), ox = (w - (n - 1) * s) / 2, oy = 10;
+      g.lineWidth = 2;
+      for (let i = 1; i < pts.length; i++) { g.strokeStyle = `hsl(${190 + 300 * i / pts.length}, 80%, 63%)`; g.beginPath(); g.moveTo(ox + pts[i - 1][0] * s, oy + pts[i - 1][1] * s); g.lineTo(ox + pts[i][0] * s, oy + pts[i][1] * s); g.stroke(); }
+    },
+    menger(g, w, h) {
+      const s0 = h - 16, ox = (w - s0) / 2, oy = 8;
+      g.fillStyle = "#d9a55b"; g.fillRect(ox, oy, s0, s0); g.fillStyle = "#0d1117";
+      const rec = (x, y, s, d) => { if (d === 0) return; const t = s / 3; g.fillRect(x + t, y + t, t, t);
+        for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) if (i !== 1 || j !== 1) rec(x + i * t, y + j * t, t, d - 1); };
+      rec(ox, oy, s0, 4);
     },
   };
   function escape(g, w, h, init, cx, cy, half) {

@@ -7,6 +7,10 @@
     { slug: "sierpinski", title: "Треугольник Серпинского" },
     { slug: "barnsley-fern", title: "Папоротник Барнсли" },
     { slug: "pythagoras-tree", title: "Дерево Пифагора" },
+    { slug: "dragon", title: "Кривая дракона" },
+    { slug: "newton", title: "Фрактал Ньютона" },
+    { slug: "hilbert", title: "Кривая Гильберта" },
+    { slug: "menger", title: "Губка Менгера" },
   ];
 
   // Ссылки на соседние фракталы внизу страницы: <nav class="more" data-current="koch"></nav>

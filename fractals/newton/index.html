@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Фрактал Ньютона</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600&family=JetBrains+Mono:wght@400;600&family=Unbounded:wght@500;700&display=swap">
+<link rel="stylesheet" href="../fractal.css">
+<style>
+  .view canvas.over { position: absolute; inset: 0; pointer-events: none; }
+  .poly { font-family: var(--font-mono); font-size: 14px; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface); overflow-x: auto; white-space: nowrap; }
+  .roots { display: grid; gap: 4px; font-family: var(--font-mono); font-size: 13px; }
+  .roots span { display: inline-flex; align-items: center; gap: 8px; }
+  .sw { width: 12px; height: 12px; border-radius: 50%; display: inline-block; border: 2px solid #0d1117; outline: 1px solid var(--line); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="crumbs"><a href="../../">← Все примеры</a><a href="../">Фракталы</a></div>
+    <h1>Фрактал Ньютона</h1>
+    <span class="formula-top">z ← z − a · p(z) / p′(z)</span>
+  </header>
+
+  <div class="main">
+    <div class="view">
+      <canvas id="cv" aria-label="Бассейны метода Ньютона"></canvas>
+      <canvas id="over" class="over" aria-hidden="true"></canvas>
+      <div class="tools"><button class="btn" id="reset" type="button">Весь вид</button></div>
+      <div class="overlay"><span>корни (кружки) можно перетаскивать · колесо — масштаб</span><span id="info"></span></div>
+    </div>
+
+    <aside class="panel">
+      <div class="group">
+        <p class="label">Многочлен</p>
+        <div class="poly" id="poly"></div>
+        <div class="row" id="presets"></div>
+        <div class="row">
+          <button class="btn" id="addRoot" type="button">+ корень</button>
+          <button class="btn" id="delRoot" type="button">− корень</button>
+        </div>
+        <div class="roots" id="roots"></div>
+      </div>
+      <div class="group">
+        <p class="label">Шаг метода a</p>
+        <div class="slider"><div class="slider-row"><label for="ar">Re a</label><output id="arOut"></output></div>
+          <input type="range" id="ar" min="0.1" max="2" step="0.01" value="1"></div>
+        <div class="slider"><div class="slider-row"><label for="ai">Im a</label><output id="aiOut"></output></div>
+          <input type="range" id="ai" min="-1" max="1" step="0.01" value="0"></div>
+        <p class="hint">Обычный метод Ньютона — a = 1. При других a шаги «недолетают», «перелетают» или закручиваются, и границы бассейнов меняются.</p>
+      </div>
+      <div class="group">
+        <div class="slider"><div class="slider-row"><label for="iter">Максимум шагов</label><output id="iterOut"></output></div>
+          <input type="range" id="iter" min="10" max="300" step="5" value="60"></div>
+        <div class="toggles"><label><input type="checkbox" id="shade" checked> Темнее, если сходится медленнее</label></div>
+      </div>
+      <div class="stats" id="stats"></div>
+    </aside>
+  </div>
+
+  <section class="about">
+    <div class="card">
+      <h2>Что это</h2>
+      <p>Метод Ньютона ищет корень уравнения p(z) = 0. Берём приближение z, проводим касательную к графику и идём туда, где она пересекает ноль:</p>
+      <span class="f">zₙ₊₁ = zₙ − p(zₙ) / p′(zₙ)</span>
+      <p>Обычно точки быстро сходятся к ближайшему корню. Покрасим каждую точку плоскости в цвет корня, к которому она пришла. Возле корней получаются спокойные области — бассейны. На границах между ними возникает фрактал.</p>
+      <p>Удивительное свойство: на границе любая сколь угодно малая окрестность точки содержит точки всех бассейнов сразу. Поэтому цвета на границе бесконечно перемешаны.</p>
+      <p>Чёрным закрашены точки, которые не дошли ни до одного корня. Например, у z³ − 2z + 2 они попадают в цикл 0 → 1 → 0 → 1 …</p>
+    </div>
+    <div class="card">
+      <h2>История</h2>
+      <ul class="timeline">
+        <li><b>1669</b><span>Исаак Ньютон описывает способ уточнять корни уравнения. В 1690 году Джозеф Рафсон даёт ему привычную форму с производной.</span></li>
+        <li><b>1879</b><span>Артур Кэли ставит вопрос: к какому корню придёт метод, если начать с комплексного числа? Для квадратного уравнения ответ простой: плоскость делится прямой пополам. Для кубического — «задача оказывается значительно труднее».</span></li>
+        <li><b>1980-е</b><span>Компьютерные картинки показывают, почему: граница бассейнов кубического уравнения — фрактал. Джон Хаббард и другие строят теорию этих границ.</span></li>
+        <li><b>2001</b><span>Хаббард, Шлейхер и Сазерленд показывают, как выбрать конечный набор стартовых точек, чтобы метод гарантированно нашёл все корни многочлена.</span></li>
+      </ul>
+    </div>
+    <div class="card">
+      <h2>Числа и факты</h2>
+      <div class="facts">
+        <span>z² − 1</span><span class="v">граница — прямая</span>
+        <span>z³ − 1</span><span class="v">3 бассейна, граница — фрактал</span>
+        <span>Скорость у простого корня</span><span class="v">квадратичная</span>
+        <span>z³ − 2z + 2</span><span class="v">есть чёрные области</span>
+      </div>
+      <p style="margin-top:10px">Квадратичная сходимость означает, что вблизи корня число верных знаков на каждом шаге примерно удваивается. Поэтому бассейны внутри такие однородные.</p>
+    </div>
+  </section>
+
+  <nav class="more" data-current="newton" aria-label="Другие фракталы"></nav>
+</div>
+
+<script src="../common.js"></script>
+<script>
+(function () {
+  const $ = id => document.getElementById(id), F = Fractal;
+  const cv = $("cv"), over = $("over"), og = over.getContext("2d");
+  const COLORS = [[235, 87, 87], [86, 168, 255], [255, 199, 66], [94, 214, 140], [190, 130, 255], [255, 140, 70]];
+  const st = { roots: [], a: [1, 0], iter: 60, shade: true };
+  const view = { cx: 0, cy: 0, halfH: 1.6 };
+  const unity = n => [...Array(n)].map((_, k) => [Math.cos(2 * Math.PI * k / n), Math.sin(2 * Math.PI * k / n)]);
+
+  // ---------- WebGL ----------
+  const gl = cv.getContext("webgl", { antialias: false });
+  if (!gl) { cv.replaceWith(Object.assign(document.createElement("div"), { className: "err", textContent: "Браузер не поддерживает WebGL, поэтому картинку не построить." })); return; }
+  const FS = `
+    precision highp float;
+    uniform vec2 uRes; uniform vec2 uCenter; uniform float uPix;
+    uniform vec2 uRoots[6]; uniform int uN; uniform vec2 uA; uniform int uIter; uniform int uShade;
+    uniform vec3 uCol[6];
+    vec2 cmul(vec2 a, vec2 b){ return vec2(a.x*b.x - a.y*b.y, a.x*b.y + a.y*b.x); }
+    vec2 cdiv(vec2 a, vec2 b){ return vec2(a.x*b.x + a.y*b.y, a.y*b.x - a.x*b.y) / dot(b, b); }
+    void main(){
+      vec2 z = uCenter + (gl_FragCoord.xy - 0.5*uRes) * uPix;
+      for (int i = 0; i < 300; i++) {
+        if (i >= uIter) break;
+        // p/p' = 1 / Σ 1/(z − rₖ)
+        vec2 s = vec2(0.0); bool hit = false;
+        for (int k = 0; k < 6; k++) {
+          if (k >= uN) break;
+          vec2 d = z - uRoots[k];
+          if (dot(d, d) < 1e-6) {
+            float t = uShade == 1 ? pow(0.955, float(i)) : 1.0;
+            gl_FragColor = vec4(uCol[k] * (0.25 + 0.75 * t), 1.0); hit = true; break;
+          }
+          s += cdiv(vec2(1.0, 0.0), d);
+        }
+        if (hit) return;
+        z -= cmul(uA, cdiv(vec2(1.0, 0.0), s));
+      }
+      gl_FragColor = vec4(0.03, 0.035, 0.05, 1.0);
+    }`;
+  const sh = (t, src) => { const s = gl.createShader(t); gl.shaderSource(s, src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); return s; };
+  const prog = gl.createProgram();
+  gl.attachShader(prog, sh(gl.VERTEX_SHADER, "attribute vec2 p; void main(){ gl_Position = vec4(p, 0.0, 1.0); }"));
+  gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, FS)); gl.linkProgram(prog); gl.useProgram(prog);
+  gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+  const loc = gl.getAttribLocation(prog, "p"); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+  const U = n => gl.getUniformLocation(prog, n);
+
+  let pending = false;
+  const request = () => { if (!pending) { pending = true; requestAnimationFrame(render); } };
+  function render() {
+    pending = false;
+    gl.viewport(0, 0, cv.width, cv.height);
+    gl.uniform2f(U("uRes"), cv.width, cv.height); gl.uniform2f(U("uCenter"), view.cx, view.cy);
+    gl.uniform1f(U("uPix"), 2 * view.halfH / cv.height);
+    const flat = new Float32Array(12); st.roots.forEach((r, i) => { flat[2 * i] = r[0]; flat[2 * i + 1] = r[1]; });
+    gl.uniform2fv(U("uRoots[0]"), flat); gl.uniform1i(U("uN"), st.roots.length);
+    gl.uniform2f(U("uA"), st.a[0], st.a[1]); gl.uniform1i(U("uIter"), st.iter); gl.uniform1i(U("uShade"), st.shade ? 1 : 0);
+    gl.uniform3fv(U("uCol[0]"), new Float32Array(COLORS.flat().map(v => v / 255)));
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    drawOverlay();
+  }
+
+  // ---------- координаты ----------
+  const rect = () => cv.getBoundingClientRect();
+  const toC = (x, y) => { const r = rect(), k = 2 * view.halfH / r.height; return [view.cx + (x - r.left - r.width / 2) * k, view.cy - (y - r.top - r.height / 2) * k]; };
+  const toS = ([a, b]) => { const r = rect(), k = r.height / (2 * view.halfH); return [r.width / 2 + (a - view.cx) * k, r.height / 2 - (b - view.cy) * k]; };
+  function drawOverlay() {
+    const d = over.width / over.clientWidth;
+    og.setTransform(d, 0, 0, d, 0, 0); og.clearRect(0, 0, over.clientWidth, over.clientHeight);
+    st.roots.forEach((r, i) => {
+      const [x, y] = toS(r);
+      og.lineWidth = 3; og.strokeStyle = "#0d1117"; og.fillStyle = `rgb(${COLORS[i]})`;
+      og.beginPath(); og.arc(x, y, 8, 0, 7); og.fill(); og.stroke();
+      og.lineWidth = 1.5; og.strokeStyle = "#fff"; og.beginPath(); og.arc(x, y, 11, 0, 7); og.stroke();
+    });
+    $("info").textContent = `увеличение ×${F.fmt(1.6 / view.halfH, view.halfH > 0.16 ? 1 : 0)}`;
+  }
+
+  // ---------- многочлен ----------
+  const cm = (a, b) => [a[0] * b[0] - a[1] * b[1], a[0] * b[1] + a[1] * b[0]];
+  function coeffs() {                      // (z − r₁)…(z − rₙ) → [c₀, c₁, …, cₙ]
+    let c = [[1, 0]];
+    st.roots.forEach(r => {
+      const nc = [...Array(c.length + 1)].map(() => [0, 0]);
+      c.forEach((v, i) => { nc[i + 1][0] += v[0]; nc[i + 1][1] += v[1]; const m = cm(v, [-r[0], -r[1]]); nc[i][0] += m[0]; nc[i][1] += m[1]; });
+      c = nc;
+    });
+    return c;
+  }
+  const num = x => F.fmt(Math.abs(x), 3);
+  function cText(c) {
+    const [re, im] = c.map(v => Math.abs(v) < 5e-4 ? 0 : v);
+    if (!im) return [re, num(re)];
+    if (!re) return [im, (Math.abs(im) === 1 ? "" : num(im)) + "i"];
+    return [1, `(${F.fmt(re, 3)} ${im < 0 ? "−" : "+"} ${num(im)}i)`];
+  }
+  function polyText() {
+    const c = coeffs(), n = c.length - 1, sup = k => String(k).split("").map(d => "⁰¹²³⁴⁵⁶⁷⁸⁹"[d]).join("");
+    let s = "p(z) = ";
+    for (let k = n; k >= 0; k--) {
+      const [sgn, t] = cText(c[k]);
+      if (sgn === 0) continue;
+      const pw = k === 0 ? "" : k === 1 ? "z" : "z" + sup(k);
+      const coefStr = k > 0 && (t === "1") ? "" : t;
+      const first = s === "p(z) = ";
+      s += (first ? (sgn < 0 ? "−" : "") : (sgn < 0 ? " − " : " + ")) + coefStr + pw;
+    }
+    return s.replace(/ \+ \(/g, " + (");
+  }
+  function renderRoots() {
+    $("poly").textContent = polyText();
+    $("roots").innerHTML = st.roots.map((r, i) => `<span><i class="sw" style="background:rgb(${COLORS[i]})"></i>z${"₁₂₃₄₅₆"[i]} = ${F.fmt(r[0], 3)} ${r[1] < 0 ? "−" : "+"} ${num(r[1])}i</span>`).join("");
+    $("addRoot").disabled = st.roots.length >= 6; $("delRoot").disabled = st.roots.length <= 2;
+    $("stats").innerHTML = `
+      <span class="k">Степень многочлена</span><span class="v">${st.roots.length}</span>
+      <span class="k">Бассейнов (цветов)</span><span class="v">${st.roots.length}</span>
+      <span class="k">Шаг a</span><span class="v">${F.fmt(st.a[0], 2)} ${st.a[1] < 0 ? "−" : "+"} ${F.fmt(Math.abs(st.a[1]), 2)}i</span>`;
+  }
+  function setRoots(rs) { st.roots = rs.map(r => r.slice()); renderRoots(); request(); }
+
+  const PRESETS = [
+    ["z³ − 1", () => unity(3)], ["z⁴ − 1", () => unity(4)], ["z⁵ − 1", () => unity(5)], ["z⁶ − 1", () => unity(6)],
+    ["z² − 1", () => unity(2)],
+    ["z³ − 2z + 2", () => [[-1.769292, 0], [0.884646, 0.589742], [0.884646, -0.589742]]],
+    ["Случайные", () => [...Array(3 + Math.floor(Math.random() * 3))].map(() => [Math.random() * 2.4 - 1.2, Math.random() * 2.4 - 1.2])],
+  ];
+  PRESETS.forEach(([n, f]) => {
+    const b = Object.assign(document.createElement("button"), { className: "btn", type: "button", textContent: n });
+    b.addEventListener("click", () => { setRoots(f()); });
+    $("presets").appendChild(b);
+  });
+  $("addRoot").addEventListener("click", () => { if (st.roots.length < 6) setRoots(st.roots.concat([[view.cx + (Math.random() - 0.5) * view.halfH, view.cy + (Math.random() - 0.5) * view.halfH]])); });
+  $("delRoot").addEventListener("click", () => { if (st.roots.length > 2) setRoots(st.roots.slice(0, -1)); });
+  F.bindSlider("ar", v => { st.a[0] = v; renderRoots(); request(); }, v => F.fmt(v, 2));
+  F.bindSlider("ai", v => { st.a[1] = v; renderRoots(); request(); }, v => F.fmt(v, 2));
+  F.bindSlider("iter", v => { st.iter = v; request(); });
+  $("shade").addEventListener("change", e => { st.shade = e.target.checked; request(); });
+  $("reset").addEventListener("click", () => { view.cx = 0; view.cy = 0; view.halfH = 1.6; request(); });
+
+  // ---------- мышь: корни, сдвиг, масштаб ----------
+  function zoomAt(x, y, f) {
+    const [a, b] = toC(x, y); view.halfH = Math.min(20, Math.max(1e-5, view.halfH * f)); const [a2, b2] = toC(x, y);
+    view.cx += a - a2; view.cy += b - b2; request();
+  }
+  const hitRoot = (x, y) => { const r = rect(); return st.roots.findIndex(z => { const [sx, sy] = toS(z); return Math.hypot(sx - (x - r.left), sy - (y - r.top)) < 14; }); };
+  cv.addEventListener("wheel", e => { e.preventDefault(); zoomAt(e.clientX, e.clientY, Math.exp(e.deltaY * 0.0015)); }, { passive: false });
+  cv.addEventListener("dblclick", e => zoomAt(e.clientX, e.clientY, e.shiftKey ? 2 : 0.5));
+  const ptrs = new Map(); let pinch = null, dragRoot = -1;
+  cv.addEventListener("pointerdown", e => {
+    cv.setPointerCapture(e.pointerId);
+    if (ptrs.size === 0) { dragRoot = hitRoot(e.clientX, e.clientY); if (dragRoot >= 0) return; }
+    ptrs.set(e.pointerId, [e.clientX, e.clientY]); pinch = null;
+  });
+  cv.addEventListener("pointermove", e => {
+    if (dragRoot >= 0) { st.roots[dragRoot] = toC(e.clientX, e.clientY); renderRoots(); request(); return; }
+    if (!ptrs.has(e.pointerId)) { cv.style.cursor = hitRoot(e.clientX, e.clientY) >= 0 ? "grab" : ""; return; }
+    const p = ptrs.get(e.pointerId); ptrs.set(e.pointerId, [e.clientX, e.clientY]);
+    if (ptrs.size === 1) { const k = 2 * view.halfH / rect().height; view.cx -= (e.clientX - p[0]) * k; view.cy += (e.clientY - p[1]) * k; request(); }
+    else if (ptrs.size === 2) { const [a, b] = [...ptrs.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]); if (pinch) zoomAt((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, pinch / d); pinch = d; }
+  });
+  const up = e => { ptrs.delete(e.pointerId); pinch = null; dragRoot = -1; };
+  cv.addEventListener("pointerup", up); cv.addEventListener("pointercancel", up);
+
+  F.fitCanvas(cv, request);
+  F.fitCanvas(over, request);
+  setRoots(unity(3));
+})();
+</script>
+</body>
+</html>
