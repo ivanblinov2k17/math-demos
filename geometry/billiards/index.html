@@ -1,0 +1,482 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Математический бильярд</title>
+<meta name="description" content="Лучи, идеально отражающиеся от стенок фигуры: угол падения равен углу отражения.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600&family=JetBrains+Mono:wght@400;600&family=Unbounded:wght@500;700&display=swap">
+<style>
+  /* Layout: холст с фигурой слева, панель управления справа; на телефоне одна колонка */
+  :root {
+    --bg: #eceff3; --surface: #ffffff; --fg: #1b2230; --muted: #5d6878; --line: #d3d9e2; --accent: #2f5fcf;
+    --ray: #2f63d6; --source: #d1344b; --fill: color-mix(in srgb, #2f5fcf 8%, #ffffff); --edge: #1b2230;
+    --font-display: "Unbounded", "Segoe UI", system-ui, sans-serif;
+    --font-body: "Golos Text", "Segoe UI", system-ui, sans-serif;
+    --font-mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #11151b; --surface: #1a2029; --fg: #e5e9ef; --muted: #98a3b3; --line: #2c3442; --accent: #7ea2ff;
+      --ray: #5b8af2; --source: #ff6177; --fill: color-mix(in srgb, #7ea2ff 12%, #1a2029); --edge: #e5e9ef;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #11151b; --surface: #1a2029; --fg: #e5e9ef; --muted: #98a3b3; --line: #2c3442; --accent: #7ea2ff;
+    --ray: #5b8af2; --source: #ff6177; --fill: color-mix(in srgb, #7ea2ff 12%, #1a2029); --edge: #e5e9ef;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { margin: 0; }
+  body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.5;
+         padding-inline: 16px; padding-block: 20px 40px; }
+  .wrap { max-width: 1240px; margin: 0 auto; display: grid; gap: 16px; }
+  header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 18px; }
+  .back { flex-basis: 100%; font-size: 13px; color: var(--muted); text-decoration: none; }
+  .back:hover { color: var(--accent); }
+  h1 { font-family: var(--font-display); font-weight: 700; font-size: clamp(20px, 2.6vw, 28px); margin: 0; letter-spacing: -0.01em; }
+  .formula-top { font-family: var(--font-mono); color: var(--muted); }
+
+  .main { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 16px; align-items: start; }
+  @media (max-width: 920px) { .main { grid-template-columns: minmax(0, 1fr); } }
+
+  .stage { position: relative; height: clamp(380px, 78vh, 760px); min-width: 0; border: 1px solid var(--line);
+           border-radius: 10px; overflow: hidden; background: var(--surface); }
+  @media (max-width: 920px) { .stage { height: clamp(340px, 60vh, 560px); } }
+  .stage canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: crosshair; }
+  .hint { position: absolute; left: 12px; bottom: 10px; font-size: 12px; color: var(--muted); pointer-events: none; font-family: var(--font-mono); }
+  .toast { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%) translateY(8px); opacity: 0;
+           font-size: 13px; color: var(--surface); background: color-mix(in srgb, var(--accent) 85%, #000);
+           padding: 6px 12px; border-radius: 999px; pointer-events: none; transition: opacity .18s, transform .18s; white-space: nowrap; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  .panel { display: grid; gap: 12px; min-width: 0; }
+  .box { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; display: grid; gap: 10px; }
+  .label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.09em; color: var(--muted); font-weight: 600; margin: 0; }
+  .shapes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+  .shapes button { font: inherit; font-size: 13.5px; font-weight: 500; padding: 8px 6px; border-radius: 8px; border: 1px solid var(--line);
+                   background: transparent; color: var(--fg); cursor: pointer; }
+  .shapes button:hover { border-color: var(--accent); }
+  .shapes button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+  .shape-info { margin: 0; font-size: 13.5px; color: var(--muted); }
+  .slider { display: grid; gap: 3px; }
+  .slider-row { display: flex; justify-content: space-between; align-items: baseline; font-size: 14px; gap: 8px; }
+  .slider-row output { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-weight: 600; }
+  input[type="range"] { width: 100%; accent-color: var(--accent); }
+  .toggles { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 14px; }
+  .toggles label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
+  .toggles input { accent-color: var(--accent); }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; }
+  button:focus-visible, input:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .btn { font: inherit; font-size: 13px; padding: 7px 12px; border-radius: 7px; cursor: pointer; border: 1px solid var(--line); background: transparent; color: var(--fg); }
+  .btn:hover { border-color: var(--accent); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+  .text { font-size: 14px; }
+  .text p { margin: 0; }
+  .text h2 { font-size: 15px; margin: 0; font-weight: 600; }
+  .f { font-family: var(--font-mono); font-size: 14px; background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+       border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line)); border-radius: 6px; padding: 6px 10px; display: block; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a class="back" href="../../">← Все примеры</a>
+    <h1>Математический бильярд</h1>
+    <span class="formula-top">α<sub>пад</sub> = α<sub>отр</sub></span>
+  </header>
+
+  <div class="main">
+    <div class="stage" id="stage">
+      <canvas id="cv" aria-label="Бильярдная фигура с отражающимися лучами"></canvas>
+      <div class="hint">кликните внутри фигуры — полетят лучи</div>
+      <div class="toast" id="toast"></div>
+    </div>
+
+    <aside class="panel">
+      <section class="box">
+        <p class="label">Фигура</p>
+        <div class="shapes" id="shapes" role="group" aria-label="Выбор фигуры">
+          <button type="button" data-shape="circle" aria-pressed="true">Круг</button>
+          <button type="button" data-shape="ellipse" aria-pressed="false">Эллипс</button>
+          <button type="button" data-shape="square" aria-pressed="false">Квадрат</button>
+          <button type="button" data-shape="rectangle" aria-pressed="false">Прямоугольник</button>
+          <button type="button" data-shape="triangle" aria-pressed="false">Треугольник</button>
+          <button type="button" data-shape="stadium" aria-pressed="false">Стадион</button>
+          <button type="button" data-shape="semicircle" aria-pressed="false">Полукруг</button>
+        </div>
+        <p class="shape-info" id="shapeInfo"></p>
+      </section>
+
+      <section class="box">
+        <div class="slider">
+          <div class="slider-row"><label for="rays">Количество лучей</label><output id="raysOut"></output></div>
+          <input type="range" id="rays" min="12" max="720" step="12" value="240">
+        </div>
+        <div class="slider">
+          <div class="slider-row"><label for="bounces">Число отражений</label><output id="bouncesOut"></output></div>
+          <input type="range" id="bounces" min="2" max="120" step="1" value="40">
+        </div>
+      </section>
+
+      <section class="box">
+        <p class="label">Вид</p>
+        <div class="toggles">
+          <label><input type="checkbox" id="tAnimate" checked> Анимация распространения</label>
+          <label><input type="checkbox" id="tColor" checked> Цвет по направлению</label>
+        </div>
+        <div class="row">
+          <button class="btn primary" id="fromCenter" type="button">Из центра</button>
+          <button class="btn" id="clear" type="button">Очистить</button>
+        </div>
+      </section>
+
+      <section class="box text">
+        <h2>Закон отражения</h2>
+        <p>Каждый луч отражается так, что угол падения равен углу отражения:</p>
+        <span class="f">v′ = v − 2·(v·n)·n</span>
+        <p>В круге и эллипсе траектории упорядочены и образуют «каустики». В стадионе соседние лучи разлетаются — это классический пример хаоса.</p>
+      </section>
+    </aside>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  const $ = id => document.getElementById(id);
+  const cv = $("cv"), ctx = cv.getContext("2d");
+  const stage = $("stage");
+  const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // ---------- Фигуры: неявная функция F(x,y) ≤ 0 внутри ----------
+  const H = 1e-3;                 // шаг конечных разностей для нормали
+  const WORLD_HALF = 1.22;        // видимый квадрат [-WH, WH]²
+
+  function sdEdge(px, py, ux, uy, vx, vy) {
+    // расстояние со знаком до ребра u→v (обход против часовой): отрицательно внутри
+    const ex = vx - ux, ey = vy - uy;
+    const cross = ex * (py - uy) - ey * (px - ux);
+    return -cross / Math.hypot(ex, ey);
+  }
+  function triangleF(x, y) {
+    const R = 0.9, s = Math.sqrt(3) / 2;
+    return Math.max(
+      sdEdge(x, y, 0, R, -s * R, -R / 2),      // A → B
+      sdEdge(x, y, -s * R, -R / 2, s * R, -R / 2), // B → C
+      sdEdge(x, y, s * R, -R / 2, 0, R)        // C → A
+    );
+  }
+  function stadiumF(x, y) {
+    const a = 0.5, r = 0.45;
+    const t = Math.max(0, Math.min(1, (x + a) / (2 * a)));
+    return Math.hypot(x - (-a + 2 * a * t), y) - r;
+  }
+
+  const SHAPES = {
+    circle: {
+      name: "Круг",
+      seed: [0, 0],
+      info: "Каждый луч отражается от окружности под тем же углом, что и падал: все хорды одной длины, траектории упорядочены.",
+      F: (x, y) => Math.hypot(x, y) - 0.9,
+    },
+    ellipse: {
+      name: "Эллипс",
+      seed: [0, 0],
+      info: "Луч, прошедший через фокус, после отражения пройдёт через второй фокус. Траектории касаются софокусного эллипса или гиперболы.",
+      F: (x, y) => (x / 0.95) * (x / 0.95) + (y / 0.6) * (y / 0.6) - 1,
+    },
+    square: {
+      name: "Квадрат",
+      seed: [0, 0],
+      info: "Параллельные стороны — как зеркальный коридор: направления не меняются, движение полностью предсказуемо.",
+      F: (x, y) => Math.max(Math.abs(x), Math.abs(y)) - 0.82,
+    },
+    rectangle: {
+      name: "Прямоугольник",
+      seed: [0, 0],
+      info: "То же разворачивание в мозаику, но стороны разной длины. Траектория периодична, когда отношение сторон рационально.",
+      F: (x, y) => Math.max(Math.abs(x) / 0.95, Math.abs(y) / 0.6) - 1,
+    },
+    triangle: {
+      name: "Треугольник",
+      seed: [0, 0],
+      info: "Судьбу траектории определяют углы. Равносторонний треугольник разворачивается в треугольную мозаику.",
+      F: triangleF,
+    },
+    stadium: {
+      name: "Стадион",
+      seed: [0, 0],
+      info: "Бильярд Бунимовича: две прямые стороны и две дуги. Соседние лучи разлетаются — классический пример хаоса.",
+      F: stadiumF,
+    },
+    semicircle: {
+      name: "Полукруг",
+      seed: [0.3, 0],
+      info: "Прямой край — зеркало, дуга — рассеиватель. Половина порядка круга и половина хаоса.",
+      F: (x, y) => Math.max(-x, Math.hypot(x, y) - 0.9),
+    },
+  };
+
+  // ---------- Состояние ----------
+  let currentKey = "circle";
+  let boundary = [];
+  let source = null;          // [x, y] в мировых координатах
+  let trajectories = [];      // [{pts, cum, angle}]
+  let animT = 0, maxRayLen = 0;
+  let raf = null, lastNow = 0;
+  let toastTimer = null;
+
+  const MAX_LEN = 48;         // предельная длина пути луча (мировые единицы)
+  const SPEED = 8;            // скорость распространения, ед./сек
+  const RAY_ALPHA = 0.5;
+
+  // ---------- Преобразование координат ----------
+  let dpr = 1, scale = 1, cx = 0, cy = 0, cw = 0, ch = 0;
+  function updateTransform() {
+    const rect = cv.getBoundingClientRect();
+    cw = rect.width; ch = rect.height;
+    scale = Math.min(cw, ch) / (2 * WORLD_HALF);
+    cx = cw / 2; cy = ch / 2;
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    cv.width = Math.round(cw * dpr);
+    cv.height = Math.round(ch * dpr);
+  }
+  const sx = wx => cx + wx * scale;
+  const sy = wy => cy - wy * scale;
+  const wx = px => (px - cx) / scale;
+  const wy = py => (cy - py) / scale;
+
+  // ---------- Трассировка луча ----------
+  function normalAt(F, x, y) {
+    const gx = (F(x + H, y) - F(x - H, y)) / (2 * H);
+    const gy = (F(x, y + H) - F(x, y - H)) / (2 * H);
+    const g = Math.hypot(gx, gy);
+    return g < 1e-9 ? [0, 0] : [gx / g, gy / g];
+  }
+  function rayMarch(F, px, py, dx, dy, maxT) {
+    // из точки внутри фигуры вдоль направления (dx,dy) до границы; возвращает расстояние или -1
+    let t = 0, prevT = 0;
+    for (let i = 0; i < 400; i++) {
+      const x = px + dx * t, y = py + dy * t;
+      const f = F(x, y);
+      if (f > 0) {
+        let lo = prevT, hi = t;
+        for (let j = 0; j < 48; j++) {
+          const mid = 0.5 * (lo + hi);
+          if (F(px + dx * mid, py + dy * mid) <= 0) lo = mid; else hi = mid;
+        }
+        return lo;
+      }
+      prevT = t;
+      const gx = (F(x + H, y) - F(x - H, y)) / (2 * H);
+      const gy = (F(x, y + H) - F(x, y - H)) / (2 * H);
+      const g = Math.hypot(gx, gy);
+      let step = g > 1e-6 ? (-f / g) * 0.75 : 0.08;
+      step = Math.min(Math.max(step, 1e-4), 0.08);
+      t += step;
+      if (t > maxT) return -1;
+    }
+    return -1;
+  }
+  function traceRay(F, x0, y0, dx, dy, maxBounces) {
+    const pts = [[x0, y0]];
+    const cum = [0];
+    let x = x0, y = y0, cdx = dx, cdy = dy, traveled = 0;
+    for (let b = 0; b < maxBounces; b++) {
+      const t = rayMarch(F, x, y, cdx, cdy, MAX_LEN - traveled);
+      if (t < 0) break;
+      const hx = x + cdx * t, hy = y + cdy * t;
+      pts.push([hx, hy]);
+      cum.push(traveled + t);
+      const n = normalAt(F, hx, hy);
+      const dot = cdx * n[0] + cdy * n[1];
+      cdx -= 2 * dot * n[0]; cdy -= 2 * dot * n[1];
+      x = hx + cdx * 1e-3; y = hy + cdy * 1e-3;
+      traveled += t + 1e-3;
+      if (traveled >= MAX_LEN) break;
+    }
+    return { pts, cum, angle: Math.atan2(dy, dx) };
+  }
+
+  // ---------- Граница фигуры (лучи из seed наружу) ----------
+  function computeBoundary(F, seed) {
+    const pts = [];
+    const N = 512;
+    for (let i = 0; i < N; i++) {
+      const a = 2 * Math.PI * i / N;
+      const ca = Math.cos(a), sa = Math.sin(a);
+      const t = rayMarch(F, seed[0], seed[1], ca, sa, 3);
+      if (t >= 0) pts.push([seed[0] + ca * t, seed[1] + sa * t]);
+    }
+    return pts;
+  }
+
+  // ---------- Запуск лучей ----------
+  function launch(px, py) {
+    const F = SHAPES[currentKey].F;
+    source = [px, py];
+    const N = +$("rays").value;
+    const B = +$("bounces").value;
+    trajectories = [];
+    for (let i = 0; i < N; i++) {
+      const a = 2 * Math.PI * i / N;
+      trajectories.push(traceRay(F, px, py, Math.cos(a), Math.sin(a), B));
+    }
+    maxRayLen = 0;
+    for (const tr of trajectories) maxRayLen = Math.max(maxRayLen, tr.cum[tr.cum.length - 1]);
+    animT = 0;
+    startAnimation();
+    draw();
+  }
+
+  // ---------- Анимация ----------
+  function startAnimation() {
+    if (raf) { cancelAnimationFrame(raf); raf = null; }
+    if (!$("tAnimate").checked || reduceMotion || !trajectories.length) {
+      animT = maxRayLen; draw(); return;
+    }
+    lastNow = performance.now();
+    raf = requestAnimationFrame(frame);
+  }
+  function frame(now) {
+    const dt = Math.min(0.05, (now - lastNow) / 1000);
+    lastNow = now;
+    animT = Math.min(maxRayLen, animT + SPEED * dt);
+    draw();
+    raf = animT < maxRayLen ? requestAnimationFrame(frame) : null;
+  }
+
+  // ---------- Отрисовка ----------
+  const T = { fill: "#eef3fd", edge: "#1b2230", ray: "#2f63d6", source: "#d1344b" };
+  function readTheme() {
+    const cs = getComputedStyle(document.documentElement);
+    T.fill = cs.getPropertyValue("--fill").trim();
+    T.edge = cs.getPropertyValue("--edge").trim();
+    T.ray = cs.getPropertyValue("--ray").trim();
+    T.source = cs.getPropertyValue("--source").trim();
+    draw();
+  }
+  function colorFor(angle) {
+    if (!$("tColor").checked) return T.ray;
+    const hue = ((angle / (2 * Math.PI)) * 360 + 360) % 360;
+    return "hsl(" + hue.toFixed(1) + " 80% 52%)";
+  }
+  function drawRayPath(g, tr, L) {
+    const pts = tr.pts, cum = tr.cum;
+    const n = pts.length;
+    if (n < 2) return;
+    let end = 0;
+    while (end < n - 1 && cum[end + 1] <= L) end++;
+    g.beginPath();
+    g.moveTo(sx(pts[0][0]), sy(pts[0][1]));
+    for (let i = 1; i <= end; i++) g.lineTo(sx(pts[i][0]), sy(pts[i][1]));
+    if (end < n - 1) {
+      const rem = L - cum[end];
+      const seg = cum[end + 1] - cum[end];
+      const k = Math.min(1, rem / seg);
+      g.lineTo(sx(pts[end][0] + (pts[end + 1][0] - pts[end][0]) * k),
+               sy(pts[end][1] + (pts[end + 1][1] - pts[end][1]) * k));
+    }
+    g.stroke();
+  }
+  function drawBoundary(g) {
+    if (!boundary.length) return;
+    g.beginPath();
+    boundary.forEach((p, i) => i ? g.lineTo(sx(p[0]), sy(p[1])) : g.moveTo(sx(p[0]), sy(p[1])));
+    g.closePath();
+    g.fillStyle = T.fill;
+    g.fill();
+    g.strokeStyle = T.edge;
+    g.lineWidth = 2;
+    g.stroke();
+  }
+  function draw() {
+    if (!cw) return;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, cw, ch);
+    drawBoundary(ctx);
+    ctx.lineWidth = 1.3;
+    ctx.globalAlpha = RAY_ALPHA;
+    for (const tr of trajectories) {
+      ctx.strokeStyle = colorFor(tr.angle);
+      drawRayPath(ctx, tr, Math.min(animT, tr.cum[tr.cum.length - 1]));
+    }
+    ctx.globalAlpha = 1;
+    if (source) {
+      ctx.fillStyle = T.source;
+      ctx.beginPath();
+      ctx.arc(sx(source[0]), sy(source[1]), 4, 0, 2 * Math.PI);
+      ctx.fill();
+    }
+  }
+
+  // ---------- Управление ----------
+  function toast(msg) {
+    const el = $("toast");
+    el.textContent = msg;
+    el.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove("show"), 1800);
+  }
+  function selectShape(key) {
+    currentKey = key;
+    document.querySelectorAll("#shapes button").forEach(b =>
+      b.setAttribute("aria-pressed", String(b.dataset.shape === key)));
+    $("shapeInfo").textContent = SHAPES[key].info;
+    boundary = computeBoundary(SHAPES[key].F, SHAPES[key].seed);
+    if (source && SHAPES[key].F(source[0], source[1]) < -0.005) launch(source[0], source[1]);
+    else { trajectories = []; source = null; animT = 0; if (raf) { cancelAnimationFrame(raf); raf = null; } draw(); }
+  }
+  function relaunch() {
+    if (source) launch(source[0], source[1]);
+  }
+
+  cv.addEventListener("pointerdown", e => {
+    const rect = cv.getBoundingClientRect();
+    const px = wx(e.clientX - rect.left), py = wy(e.clientY - rect.top);
+    if (SHAPES[currentKey].F(px, py) < -0.005) launch(px, py);
+    else toast("Кликните внутри фигуры");
+  });
+
+  document.querySelectorAll("#shapes button").forEach(b =>
+    b.addEventListener("click", () => selectShape(b.dataset.shape)));
+
+  $("rays").addEventListener("input", () => $("raysOut").textContent = $("rays").value);
+  $("rays").addEventListener("change", relaunch);
+  $("bounces").addEventListener("input", () => $("bouncesOut").textContent = $("bounces").value);
+  $("bounces").addEventListener("change", relaunch);
+
+  $("tAnimate").addEventListener("change", () => { if (trajectories.length) { animT = 0; startAnimation(); } });
+  $("tColor").addEventListener("change", draw);
+
+  $("fromCenter").addEventListener("click", () => {
+    const s = SHAPES[currentKey].seed;
+    launch(s[0], s[1]);
+  });
+  $("clear").addEventListener("click", () => {
+    source = null; trajectories = []; animT = 0;
+    if (raf) { cancelAnimationFrame(raf); raf = null; }
+    draw();
+    toast("Кликните внутри фигуры");
+  });
+
+  new ResizeObserver(() => { updateTransform(); draw(); }).observe(stage);
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", readTheme);
+  new MutationObserver(readTheme).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+
+  // ---------- Старт ----------
+  $("raysOut").textContent = $("rays").value;
+  $("bouncesOut").textContent = $("bounces").value;
+  updateTransform();
+  selectShape("circle");
+  launch(0, 0);
+})();
+</script>
+</body>
+</html>
