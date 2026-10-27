@@ -213,39 +213,124 @@
     return s * Math.sqrt(d);
   }
 
-  // Комната Пенроуза: высокий эллипс с двумя «грибками» (ножка + шляпка) сверху и снизу
-  function penrosePolygon() {
-    const a = 0.80, b = 1.08;                 // полуоси вертикального эллипса
-    const stem = 0.065, capHW = 0.22, capDepth = 0.06, capY = 0.86;
-    const thStem = Math.acos(stem / a);
-    const ex = th => [a * Math.cos(th), b * Math.sin(th)];
-    const P = [];
-    const addArc = (t0, t1, n) => { for (let i = 0; i <= n; i++) P.push(ex(t0 + (t1 - t0) * i / n)); };
-    const yWall = b * Math.sin(thStem);
-    const addMushroom = (sgn) => {
-      const yCap = sgn * capY;
-      if (sgn > 0) {                                   // верхний: вход с левого края
-        P.push([-stem, yCap], [-capHW, yCap]);
-        for (let i = 0; i <= 40; i++) { const u = i / 40; P.push([-capHW + 2 * capHW * u, yCap - capDepth * Math.sin(Math.PI * u)]); }
-        P.push([stem, yCap], [stem, sgn * yWall]);
-      } else {                                          // нижний: вход с правого края
-        P.push([stem, yCap], [capHW, yCap]);
-        for (let i = 0; i <= 40; i++) { const u = i / 40; P.push([capHW - 2 * capHW * u, yCap + capDepth * Math.sin(Math.PI * u)]); }
-        P.push([-stem, yCap], [-stem, sgn * yWall]);
-      }
-    };
-    addArc(thStem, -thStem, 90);                        // правый бок (по часовой)
-    addMushroom(-1);                                    // нижний грибок
-    addArc(-Math.PI + thStem, -Math.PI - thStem, 90);   // левый бок
-    addMushroom(1);                                     // верхний грибок
-    const dedup = [];
-    for (const p of P) { const l = dedup[dedup.length - 1]; if (!l || Math.hypot(p[0] - l[0], p[1] - l[1]) > 1e-6) dedup.push(p); }
-    if (dedup.length > 1) { const a0 = dedup[0], b0 = dedup[dedup.length - 1]; if (Math.hypot(a0[0] - b0[0], a0[1] - b0[1]) < 1e-6) dedup.pop(); }
-    let area = 0;
-    for (let i = 0; i < dedup.length; i++) { const p = dedup[i], q = dedup[(i + 1) % dedup.length]; area += p[0] * q[1] - q[0] * p[1]; }
-    return area >= 0 ? dedup : dedup.slice().reverse();
+  // Комната Пенроуза: 4 ТОЧНЫЕ эллиптические дуги + 12 отрезков.
+  // Полигонная аппроксимация разрушает фокусировку (лучи заполняют всё),
+  // поэтому трассировка идёт по точным дугам с аналитическими нормалями.
+  function penrosePieces() {
+    const s = 0.018;
+    const WA = [                                     // [cx, cy, a, b, t0, t1] в «широкой» ориентации
+      [0, 17.5, 58.5, 35.25, 0, Math.PI],            // верхняя дуга
+      [0, -17.5, 58.5, 35.25, Math.PI, 2 * Math.PI], // нижняя дуга
+      [-47, 0, 10.4, 17.5, -Math.PI / 2, Math.PI / 2], // левый гриб (дуга вправо)
+      [47, 0, 10.4, 17.5, Math.PI / 2, 3 * Math.PI / 2], // правый гриб (дуга влево)
+    ];
+    // поворот (x,y)->(y,-x): центр (cy,-cx), полуоси (b,a), углы сдвигаются на -PI/2
+    const arcs = WA.map(([cx, cy, a, b, t0, t1]) => ({ cx: s * cy, cy: -s * cx, a: s * b, b: s * a, t0: t0 - Math.PI / 2, t1: t1 - Math.PI / 2 }));
+    const WS = [
+      [[58.5, 17.5], [58.5, 5.85]], [[58.5, 5.85], [47, 5.85]], [[47, 5.85], [47, 17.5]],
+      [[58.5, -17.5], [58.5, -5.85]], [[58.5, -5.85], [47, -5.85]], [[47, -5.85], [47, -17.5]],
+      [[-58.5, -17.5], [-58.5, -5.85]], [[-58.5, -5.85], [-47, -5.85]], [[-47, -5.85], [-47, -17.5]],
+      [[-58.5, 17.5], [-58.5, 5.85]], [[-58.5, 5.85], [-47, 5.85]], [[-47, 5.85], [-47, 17.5]],
+    ];
+    const segs = WS.map(([u, v]) => [[s * u[1], -s * u[0]], [s * v[1], -s * v[0]]]);
+    return { arcs, segs };
   }
-  const penrosePoly = penrosePolygon();
+  const PENROSE = penrosePieces();
+
+  function angIn(t, t0, t1) {
+    const two = 2 * Math.PI, norm = x => ((x % two) + two) % two;
+    if (Math.abs(t1 - t0) >= two) return true;
+    const a0 = norm(t0), a1 = norm(t1), tt = norm(t);
+    return a0 <= a1 ? (tt >= a0 - 1e-9 && tt <= a1 + 1e-9) : (tt >= a0 - 1e-9 || tt <= a1 + 1e-9);
+  }
+  function rayArc(px, py, dx, dy, ar) {
+    const ox = px - ar.cx, oy = py - ar.cy;
+    const qa = dx * dx / (ar.a * ar.a) + dy * dy / (ar.b * ar.b);
+    const qb = 2 * (dx * ox / (ar.a * ar.a) + dy * oy / (ar.b * ar.b));
+    const qc = ox * ox / (ar.a * ar.a) + oy * oy / (ar.b * ar.b) - 1;
+    const disc = qb * qb - 4 * qa * qc;
+    if (disc < 0) return null;
+    const sq = Math.sqrt(disc), roots = [(-qb - sq) / (2 * qa), (-qb + sq) / (2 * qa)].filter(t => t > 1e-7).sort((u, v) => u - v);
+    for (const t of roots) {
+      const hx = px + dx * t, hy = py + dy * t;
+      const th = Math.atan2((hy - ar.cy) / ar.b, (hx - ar.cx) / ar.a);
+      if (angIn(th, ar.t0, ar.t1)) {
+        const nx = (hx - ar.cx) / (ar.a * ar.a), ny = (hy - ar.cy) / (ar.b * ar.b), nl = Math.hypot(nx, ny) || 1;
+        return { t, hx, hy, nx: nx / nl, ny: ny / nl };
+      }
+    }
+    return null;
+  }
+  function raySeg(px, py, dx, dy, sg) {
+    const ax = sg[0][0], ay = sg[0][1], bx = sg[1][0], by = sg[1][1];
+    const ex = bx - ax, ey = by - ay, den = dx * ey - dy * ex;
+    if (Math.abs(den) < 1e-12) return null;
+    const t = ((ax - px) * ey - (ay - py) * ex) / den;
+    const u = ((ax - px) * dy - (ay - py) * dx) / den;
+    if (t > 1e-7 && u >= -1e-9 && u <= 1 + 1e-9) {
+      const nl = Math.hypot(ey, ex) || 1;
+      return { t, hx: px + dx * t, hy: py + dy * t, nx: ey / nl, ny: -ex / nl };
+    }
+    return null;
+  }
+  function hitPieces(p, px, py, dx, dy) {
+    let best = null;
+    for (const ar of p.arcs) { const r = rayArc(px, py, dx, dy, ar); if (r && (!best || r.t < best.t)) best = r; }
+    for (const sg of p.segs) { const r = raySeg(px, py, dx, dy, sg); if (r && (!best || r.t < best.t)) best = r; }
+    return best;
+  }
+  function insidePieces(p, x, y) {
+    const dx = 1, dy = 0.00137;
+    let cross = 0;
+    for (const ar of p.arcs) if (rayArc(x, y, dx, dy, ar)) cross++;
+    for (const sg of p.segs) if (raySeg(x, y, dx, dy, sg)) cross++;
+    return (cross % 2) === 1;
+  }
+  function tracePieces(p, x0, y0, dx, dy, maxB, maxLen) {
+    const pts = [[x0, y0]];
+    let x = x0, y = y0, cx = dx, cy = dy, len = 0;
+    for (let b = 0; b < maxB; b++) {
+      const h = hitPieces(p, x, y, cx, cy);
+      if (!h || h.t > maxLen - len + 1e-6) break;
+      pts.push([h.hx, h.hy]);
+      const dot = cx * h.nx + cy * h.ny;
+      cx -= 2 * dot * h.nx; cy -= 2 * dot * h.ny;
+      x = h.hx + cx * 1e-4; y = h.hy + cy * 1e-4; len += h.t;
+    }
+    const cum = [0]; let acc = 0;
+    for (let i = 1; i < pts.length; i++) { acc += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); cum.push(acc); }
+    return { pts, cum, angle: Math.atan2(dy, dx) };
+  }
+  // сборка замкнутого контура из кусков (для отрисовки заливки)
+  function assembleLoop(p) {
+    const el = [];
+    for (const ar of p.arcs) {
+      const pts = [], n = 100;
+      for (let i = 0; i <= n; i++) { const t = ar.t0 + (ar.t1 - ar.t0) * i / n; pts.push([ar.cx + ar.a * Math.cos(t), ar.cy + ar.b * Math.sin(t)]); }
+      el.push(pts);
+    }
+    for (const sg of p.segs) el.push([sg[0], sg[1]]);
+    const used = new Array(el.length).fill(false);
+    const loop = [];
+    let idx = 0; used[idx] = true; loop.push(...el[idx]);
+    let end = el[idx][el[idx].length - 1];
+    for (let k = 1; k < el.length; k++) {
+      let found = -1, rev = false;
+      for (let i = 0; i < el.length; i++) {
+        if (used[i]) continue;
+        if (Math.hypot(el[i][0][0] - end[0], el[i][0][1] - end[1]) < 1e-5) { found = i; rev = false; break; }
+        if (Math.hypot(el[i][el[i].length - 1][0] - end[0], el[i][el[i].length - 1][1] - end[1]) < 1e-5) { found = i; rev = true; break; }
+      }
+      if (found < 0) break;
+      used[found] = true;
+      const pts = rev ? el[found].slice().reverse() : el[found];
+      loop.push(...pts.slice(1));
+      end = pts[pts.length - 1];
+    }
+    return loop;
+  }
+  let penroseLoopCache = null;
+  function penroseLoop() { return penroseLoopCache || (penroseLoopCache = assembleLoop(PENROSE)); }
 
   // Песочные часы: многоугольник с параболическими боками (точная граница для отражений)
   function hourglassPolygon() {
@@ -353,10 +438,8 @@
     },
     penrose: {
       name: "Комната Пенроуза", seed: [0, 0],
-      info: "Высокий эллипс с двумя «грибками»-стенками. Это «неосвещаемая» комната Пенроуза: лучи из одной точки не могут осветить всю комнату. Кликните около фиолетового крестика (фокус эллипса).",
-      F: (x, y) => sdPolygon(penrosePoly, x, y),
-      poly: penrosePoly,
-      foci: [[0, 0.7255], [0, -0.7255]],
+      info: "Точные эллиптические дуги + «грибки». Свет из любой точки не освещает комнату полностью — часть остаётся в тени (неосвещаемая комната Пенроуза).",
+      pieces: PENROSE,
     },
     heart: {
       name: "Сердце", seed: [0, -0.25],
@@ -471,14 +554,15 @@
 
   // ---------- Запуск лучей ----------
   function launch(px, py) {
-    const F = SHAPES[currentKey].F;
+    const sh = SHAPES[currentKey];
     source = [px, py];
     const N = +$("rays").value;
     const B = +$("bounces").value;
     trajectories = [];
     for (let i = 0; i < N; i++) {
       const a = 2 * Math.PI * i / N;
-      trajectories.push(traceRay(F, px, py, Math.cos(a), Math.sin(a), B));
+      if (sh.pieces) trajectories.push(tracePieces(sh.pieces, px, py, Math.cos(a), Math.sin(a), B, MAX_LEN));
+      else trajectories.push(traceRay(sh.F, px, py, Math.cos(a), Math.sin(a), B));
     }
     maxRayLen = 0;
     for (const tr of trajectories) maxRayLen = Math.max(maxRayLen, tr.cum[tr.cum.length - 1]);
@@ -579,11 +663,35 @@
       g.fill();
     }
   }
+  function drawPiecesFill(g) {
+    const lp = penroseLoop();
+    if (!lp || lp.length < 3) return;
+    g.beginPath();
+    lp.forEach((p, i) => i ? g.lineTo(sx(p[0]), sy(p[1])) : g.moveTo(sx(p[0]), sy(p[1])));
+    g.closePath();
+    g.fillStyle = T.fill;
+    g.fill();
+  }
+  function drawPiecesStroke(g) {
+    const lp = penroseLoop();
+    if (!lp || lp.length < 3) return;
+    g.beginPath();
+    lp.forEach((p, i) => i ? g.lineTo(sx(p[0]), sy(p[1])) : g.moveTo(sx(p[0]), sy(p[1])));
+    g.closePath();
+    g.strokeStyle = T.edge;
+    g.lineWidth = 5;
+    g.lineJoin = "round";
+    g.stroke();
+    g.lineJoin = "miter";
+  }
   function draw() {
     if (!cw) return;
+    const sh = SHAPES[currentKey];
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, cw, ch);
-    if (boundary) drawBoundaryFill(ctx); else drawThick(ctx);
+    if (boundary) drawBoundaryFill(ctx);
+    else if (sh.pieces) drawPiecesFill(ctx);
+    else drawThick(ctx);
     ctx.lineWidth = 1.3;
     ctx.globalAlpha = RAY_ALPHA;
     for (const tr of trajectories) {
@@ -593,6 +701,7 @@
     ctx.globalAlpha = 1;
     // толстая линия границы поверх лучей: скрывает выход лучей за край
     if (boundary) drawBoundaryStroke(ctx);
+    else if (sh.pieces) drawPiecesStroke(ctx);
     drawFoci(ctx);
     if (source) {
       ctx.fillStyle = T.source;
@@ -616,7 +725,7 @@
       b.setAttribute("aria-pressed", String(b.dataset.shape === key)));
     $("shapeInfo").textContent = SHAPES[key].info;
     const sh = SHAPES[key];
-    boundary = sh.poly ? sh.poly : sh.thick ? null : computeBoundary(sh.F, sh.seed);
+    boundary = sh.poly ? sh.poly : (sh.thick || sh.pieces) ? null : computeBoundary(sh.F, sh.seed);
     // не запускаем лучи автоматически — только по клику или кнопке
     source = null; trajectories = []; animT = 0;
     if (raf) { cancelAnimationFrame(raf); raf = null; }
@@ -629,7 +738,9 @@
   cv.addEventListener("pointerdown", e => {
     const rect = cv.getBoundingClientRect();
     const px = wx(e.clientX - rect.left), py = wy(e.clientY - rect.top);
-    if (SHAPES[currentKey].F(px, py) < -0.005) launch(px, py);
+    const sh = SHAPES[currentKey];
+    const inside = sh.pieces ? insidePieces(sh.pieces, px, py) : sh.F(px, py) < -0.005;
+    if (inside) launch(px, py);
     else toast("Кликните внутри фигуры");
   });
 
