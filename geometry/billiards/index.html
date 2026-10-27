@@ -12,7 +12,7 @@
   /* Layout: холст с фигурой слева, панель управления справа; на телефоне одна колонка */
   :root {
     --bg: #eceff3; --surface: #ffffff; --fg: #1b2230; --muted: #5d6878; --line: #d3d9e2; --accent: #2f5fcf;
-    --ray: #2f63d6; --source: #d1344b; --fill: color-mix(in srgb, #2f5fcf 8%, #ffffff); --edge: #1b2230;
+    --ray: #2f63d6; --source: #d1344b; --focus: #b44fd0; --fill: color-mix(in srgb, #2f5fcf 8%, #ffffff); --edge: #1b2230;
     --font-display: "Unbounded", "Segoe UI", system-ui, sans-serif;
     --font-body: "Golos Text", "Segoe UI", system-ui, sans-serif;
     --font-mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
@@ -21,13 +21,13 @@
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
       --bg: #11151b; --surface: #1a2029; --fg: #e5e9ef; --muted: #98a3b3; --line: #2c3442; --accent: #7ea2ff;
-      --ray: #5b8af2; --source: #ff6177; --fill: color-mix(in srgb, #7ea2ff 12%, #1a2029); --edge: #e5e9ef;
+      --ray: #5b8af2; --source: #ff6177; --focus: #d78fe8; --fill: color-mix(in srgb, #7ea2ff 12%, #1a2029); --edge: #e5e9ef;
       color-scheme: dark;
     }
   }
   :root[data-theme="dark"] {
     --bg: #11151b; --surface: #1a2029; --fg: #e5e9ef; --muted: #98a3b3; --line: #2c3442; --accent: #7ea2ff;
-    --ray: #5b8af2; --source: #ff6177; --fill: color-mix(in srgb, #7ea2ff 12%, #1a2029); --edge: #e5e9ef;
+    --ray: #5b8af2; --source: #ff6177; --focus: #d78fe8; --fill: color-mix(in srgb, #7ea2ff 12%, #1a2029); --edge: #e5e9ef;
     color-scheme: dark;
   }
   * { box-sizing: border-box; }
@@ -109,6 +109,10 @@
           <button type="button" data-shape="triangle" aria-pressed="false">Треугольник</button>
           <button type="button" data-shape="stadium" aria-pressed="false">Стадион</button>
           <button type="button" data-shape="semicircle" aria-pressed="false">Полукруг</button>
+          <button type="button" data-shape="penrose" aria-pressed="false">Комната Пенроуза</button>
+          <button type="button" data-shape="heart" aria-pressed="false">Сердце</button>
+          <button type="button" data-shape="treble" aria-pressed="false">Скрипичный ключ</button>
+          <button type="button" data-shape="hourglass" aria-pressed="false">Песочные часы</button>
         </div>
         <p class="shape-info" id="shapeInfo"></p>
       </section>
@@ -121,6 +125,10 @@
         <div class="slider">
           <div class="slider-row"><label for="bounces">Число отражений</label><output id="bouncesOut"></output></div>
           <input type="range" id="bounces" min="2" max="120" step="1" value="40">
+        </div>
+        <div class="slider">
+          <div class="slider-row"><label for="speed">Скорость лучей</label><output id="speedOut"></output></div>
+          <input type="range" id="speed" min="2" max="40" step="1" value="8">
         </div>
       </section>
 
@@ -140,7 +148,7 @@
         <h2>Закон отражения</h2>
         <p>Каждый луч отражается так, что угол падения равен углу отражения:</p>
         <span class="f">v′ = v − 2·(v·n)·n</span>
-        <p>В круге и эллипсе траектории упорядочены и образуют «каустики». В стадионе соседние лучи разлетаются — это классический пример хаоса.</p>
+        <p>В круге и эллипсе траектории упорядочены и образуют «каустики». В стадионе и комнате Пенроуза соседние лучи разлетаются — это хаос.</p>
       </section>
     </aside>
   </div>
@@ -159,7 +167,6 @@
   const WORLD_HALF = 1.22;        // видимый квадрат [-WH, WH]²
 
   function sdEdge(px, py, ux, uy, vx, vy) {
-    // расстояние со знаком до ребра u→v (обход против часовой): отрицательно внутри
     const ex = vx - ux, ey = vy - uy;
     const cross = ex * (py - uy) - ey * (px - ux);
     return -cross / Math.hypot(ex, ey);
@@ -167,9 +174,9 @@
   function triangleF(x, y) {
     const R = 0.9, s = Math.sqrt(3) / 2;
     return Math.max(
-      sdEdge(x, y, 0, R, -s * R, -R / 2),      // A → B
-      sdEdge(x, y, -s * R, -R / 2, s * R, -R / 2), // B → C
-      sdEdge(x, y, s * R, -R / 2, 0, R)        // C → A
+      sdEdge(x, y, 0, R, -s * R, -R / 2),
+      sdEdge(x, y, -s * R, -R / 2, s * R, -R / 2),
+      sdEdge(x, y, s * R, -R / 2, 0, R)
     );
   }
   function stadiumF(x, y) {
@@ -178,62 +185,184 @@
     return Math.hypot(x - (-a + 2 * a * t), y) - r;
   }
 
+  // Сердце (точная SDF из 2D-примитивов И. Квилеса), в «нативных» координатах ~[0,1]²
+  function sdHeart(hx, hy) {
+    const px = Math.abs(hx);
+    if (hy + px > 1.0) return Math.hypot(px - 0.25, hy - 0.75) - Math.SQRT2 / 4;
+    const m = 0.5 * Math.max(px + hy, 0);
+    const a = px * px + (hy - 1) * (hy - 1);
+    const b = (px - m) * (px - m) + (hy - m) * (hy - m);
+    return Math.sqrt(Math.min(a, b)) * Math.sign(px - hy);
+  }
+  function heartF(x, y) { return sdHeart(x * 0.66, (y + 0.6) * 0.875); }
+
+  // Песочные часы: узкое горлышко посередине
+  function hourglassF(x, y) {
+    const h = 0.95, w = 0.15 + 0.75 * (y / h) * (y / h);
+    return Math.max(Math.abs(x) - w, Math.abs(y) - h);
+  }
+
+  // Расстояние со знаком до многоугольника (отрицательно внутри)
+  function sdPolygon(pts, x, y) {
+    let d = (x - pts[0][0]) * (x - pts[0][0]) + (y - pts[0][1]) * (y - pts[0][1]), s = 1;
+    for (let i = 0, j = pts.length - 1; i < pts.length; j = i, i++) {
+      const vix = pts[i][0], viy = pts[i][1], vjx = pts[j][0], vjy = pts[j][1];
+      const ex = vjx - vix, ey = vjy - viy, e2 = ex * ex + ey * ey;
+      const cl = Math.max(0, Math.min(1, ((x - vix) * ex + (y - viy) * ey) / e2));
+      const bx = (x - vix) - ex * cl, by = (y - viy) - ey * cl;
+      d = Math.min(d, bx * bx + by * by);
+      const c3 = y >= viy, c1 = y < vjy, c2 = ex * (y - viy) > ey * (x - vix);
+      if ((c3 && c1 && c2) || (!c3 && !c1 && !c2)) s = -s;
+    }
+    return s * Math.sqrt(d);
+  }
+
+  // Комната Пенроуза: многоугольник (эллиптические дуги + «грибы» + ступеньки), в мировых координатах
+  function penrosePolygon() {
+    const P = [], K = 0.02, N_ARC = 90, N_MUSH = 28;
+    // нижняя дуга (SVG y_down 10-30*sqrt(1-(x/50)^2)), x от 50 до -50
+    for (let i = 0; i <= N_ARC; i++) {
+      const x = 50 - 100 * i / N_ARC;
+      P.push([K * x, K * (10 - 30 * Math.sqrt(Math.max(0, 1 - (x / 50) * (x / 50))))]);
+    }
+    P.push([K * -50, K * 2], [K * -40, K * 2], [K * -40, K * 10]);
+    for (let i = 0; i <= N_MUSH; i++) {
+      const y = 10 - 20 * i / N_MUSH;
+      P.push([K * (-40 - 5 * Math.sqrt(Math.max(0, 1 - (y / 10) * (y / 10)))), K * y]);
+    }
+    P.push([K * -40, K * -2], [K * -50, K * -2], [K * -50, K * -10]);
+    for (let i = 0; i <= N_ARC; i++) {
+      const x = -50 + 100 * i / N_ARC;
+      P.push([K * x, K * (-10 + 30 * Math.sqrt(Math.max(0, 1 - (x / 50) * (x / 50))))]);
+    }
+    P.push([K * 50, K * -2], [K * 40, K * -2], [K * 40, K * -10]);
+    for (let i = 0; i <= N_MUSH; i++) {
+      const y = -10 + 20 * i / N_MUSH;
+      P.push([K * (40 + 5 * Math.sqrt(Math.max(0, 1 - (y / 10) * (y / 10)))), K * y]);
+    }
+    P.push([K * 40, K * 2], [K * 50, K * 2], [K * 50, K * 10]);
+    // убрать дубли и ориентировать против часовой
+    const dedup = [];
+    for (const p of P) { const l = dedup[dedup.length - 1]; if (!l || Math.hypot(p[0] - l[0], p[1] - l[1]) > 1e-6) dedup.push(p); }
+    if (dedup.length > 1) { const a = dedup[0], b = dedup[dedup.length - 1]; if (Math.hypot(a[0] - b[0], a[1] - b[1]) < 1e-6) dedup.pop(); }
+    let area = 0;
+    for (let i = 0; i < dedup.length; i++) { const p = dedup[i], q = dedup[(i + 1) % dedup.length]; area += p[0] * q[1] - q[0] * p[1]; }
+    return area >= 0 ? dedup : dedup.slice().reverse();
+  }
+  const penrosePoly = penrosePolygon();
+
+  // Скрипичный ключ: центральная линия (спираль + стержень + петля), расстояние до неё минус толщина
+  function trebleCenterline() {
+    const pts = [];
+    const cx = 0.12, cy = -0.40, R0 = 0.48, R1 = 0.16, turns = 1.5;
+    const a0 = -Math.PI / 2, a1 = a0 + turns * 2 * Math.PI, N = 300;
+    for (let i = 0; i <= N; i++) {
+      const t = i / N, th = a0 + (a1 - a0) * t, r = R0 - (R0 - R1) * t;
+      pts.push([cx + r * Math.cos(th), cy + r * Math.sin(th)]);
+    }
+    pts.push([0.05, -0.05], [0.05, 0.55]);
+    const lcx = -0.05, lcy = 0.42, lr = 0.16;
+    for (let i = 0; i <= 40; i++) {
+      const a = 0.915 + (i / 40) * (2.4 * Math.PI);
+      pts.push([lcx + lr * Math.cos(a), lcy + lr * Math.sin(a)]);
+    }
+    const ha = 0.915 + 2.4 * Math.PI;
+    pts.push([lcx + lr * Math.cos(ha) + 0.06, lcy + lr * Math.sin(ha) + 0.02]);
+    return pts;
+  }
+  const treblePts = trebleCenterline();
+  const TREBLE_R = 0.085;
+  function makeDistToPolyline(pts) {
+    const edges = [];
+    for (let i = 0; i < pts.length - 1; i++) {
+      const ax = pts[i][0], ay = pts[i][1], bx = pts[i + 1][0], by = pts[i + 1][1];
+      const ex = bx - ax, ey = by - ay, e2 = ex * ex + ey * ey;
+      edges.push([ax, ay, ex, ey, e2]);
+    }
+    return (x, y) => {
+      let d = Infinity;
+      for (let i = 0; i < edges.length; i++) {
+        const e = edges[i];
+        const t = Math.max(0, Math.min(1, ((x - e[0]) * e[2] + (y - e[1]) * e[3]) / e[4]));
+        const dx = x - (e[0] + e[2] * t), dy = y - (e[1] + e[3] * t);
+        d = Math.min(d, dx * dx + dy * dy);
+      }
+      return Math.sqrt(d);
+    };
+  }
+  const distToTreble = makeDistToPolyline(treblePts);
+
   const SHAPES = {
     circle: {
-      name: "Круг",
-      seed: [0, 0],
+      name: "Круг", seed: [0, 0],
       info: "Каждый луч отражается от окружности под тем же углом, что и падал: все хорды одной длины, траектории упорядочены.",
       F: (x, y) => Math.hypot(x, y) - 0.9,
     },
     ellipse: {
-      name: "Эллипс",
-      seed: [0, 0],
+      name: "Эллипс", seed: [0, 0],
       info: "Луч, прошедший через фокус, после отражения пройдёт через второй фокус. Траектории касаются софокусного эллипса или гиперболы.",
       F: (x, y) => (x / 0.95) * (x / 0.95) + (y / 0.6) * (y / 0.6) - 1,
     },
     square: {
-      name: "Квадрат",
-      seed: [0, 0],
+      name: "Квадрат", seed: [0, 0],
       info: "Параллельные стороны — как зеркальный коридор: направления не меняются, движение полностью предсказуемо.",
       F: (x, y) => Math.max(Math.abs(x), Math.abs(y)) - 0.82,
     },
     rectangle: {
-      name: "Прямоугольник",
-      seed: [0, 0],
+      name: "Прямоугольник", seed: [0, 0],
       info: "То же разворачивание в мозаику, но стороны разной длины. Траектория периодична, когда отношение сторон рационально.",
       F: (x, y) => Math.max(Math.abs(x) / 0.95, Math.abs(y) / 0.6) - 1,
     },
     triangle: {
-      name: "Треугольник",
-      seed: [0, 0],
+      name: "Треугольник", seed: [0, 0],
       info: "Судьбу траектории определяют углы. Равносторонний треугольник разворачивается в треугольную мозаику.",
       F: triangleF,
     },
     stadium: {
-      name: "Стадион",
-      seed: [0, 0],
+      name: "Стадион", seed: [0, 0],
       info: "Бильярд Бунимовича: две прямые стороны и две дуги. Соседние лучи разлетаются — классический пример хаоса.",
       F: stadiumF,
     },
     semicircle: {
-      name: "Полукруг",
-      seed: [0.3, 0],
+      name: "Полукруг", seed: [0.3, 0],
       info: "Прямой край — зеркало, дуга — рассеиватель. Половина порядка круга и половина хаоса.",
       F: (x, y) => Math.max(-x, Math.hypot(x, y) - 0.9),
+    },
+    penrose: {
+      name: "Комната Пенроуза", seed: [0, 0],
+      info: "«Неосвещаемая» комната: верхняя и нижняя стенки — дуги эллипсов. Лучи из одной точки не могут осветить всю комнату. Кликните около фиолетового крестика (фокус).",
+      F: (x, y) => sdPolygon(penrosePoly, x, y),
+      poly: penrosePoly,
+      foci: [[-0.8, 0.2], [0.8, 0.2], [-0.8, -0.2], [0.8, -0.2]],
+    },
+    heart: {
+      name: "Сердце", seed: [0, -0.25],
+      info: "Две дуги и остриё. Невыпуклая форма: лучи собираются в «каустики» у нижнего острия.",
+      F: heartF,
+    },
+    treble: {
+      name: "Скрипичный ключ", seed: [0.05, 0],
+      info: "Скрипичный ключ как узкий зеркальный коридор: лучи бегут по спирали, стержню и верхней петле.",
+      F: (x, y) => distToTreble(x, y) - TREBLE_R,
+      thick: { pts: treblePts, r: TREBLE_R },
+    },
+    hourglass: {
+      name: "Песочные часы", seed: [0, 0],
+      info: "Две камеры соединяет узкое горлышко: лучи подолгу остаются в одной половине и редко проходят в другую.",
+      F: hourglassF,
     },
   };
 
   // ---------- Состояние ----------
   let currentKey = "circle";
-  let boundary = [];
+  let boundary = null;        // точки границы (для полигональных/неявных фигур)
   let source = null;          // [x, y] в мировых координатах
   let trajectories = [];      // [{pts, cum, angle}]
-  let animT = 0, maxRayLen = 0;
+  let animT = 0, maxRayLen = 0, speed = 8;
   let raf = null, lastNow = 0;
   let toastTimer = null;
 
   const MAX_LEN = 48;         // предельная длина пути луча (мировые единицы)
-  const SPEED = 8;            // скорость распространения, ед./сек
   const RAY_ALPHA = 0.5;
 
   // ---------- Преобразование координат ----------
@@ -260,7 +389,6 @@
     return g < 1e-9 ? [0, 0] : [gx / g, gy / g];
   }
   function rayMarch(F, px, py, dx, dy, maxT) {
-    // из точки внутри фигуры вдоль направления (dx,dy) до границы; возвращает расстояние или -1
     let t = 0, prevT = 0;
     for (let i = 0; i < 400; i++) {
       const x = px + dx * t, y = py + dy * t;
@@ -347,19 +475,20 @@
   function frame(now) {
     const dt = Math.min(0.05, (now - lastNow) / 1000);
     lastNow = now;
-    animT = Math.min(maxRayLen, animT + SPEED * dt);
+    animT = Math.min(maxRayLen, animT + speed * dt);
     draw();
     raf = animT < maxRayLen ? requestAnimationFrame(frame) : null;
   }
 
   // ---------- Отрисовка ----------
-  const T = { fill: "#eef3fd", edge: "#1b2230", ray: "#2f63d6", source: "#d1344b" };
+  const T = { fill: "#eef3fd", edge: "#1b2230", ray: "#2f63d6", source: "#d1344b", focus: "#b44fd0" };
   function readTheme() {
     const cs = getComputedStyle(document.documentElement);
     T.fill = cs.getPropertyValue("--fill").trim();
     T.edge = cs.getPropertyValue("--edge").trim();
     T.ray = cs.getPropertyValue("--ray").trim();
     T.source = cs.getPropertyValue("--source").trim();
+    T.focus = cs.getPropertyValue("--focus").trim();
     draw();
   }
   function colorFor(angle) {
@@ -386,7 +515,7 @@
     g.stroke();
   }
   function drawBoundary(g) {
-    if (!boundary.length) return;
+    if (!boundary || boundary.length < 3) return;
     g.beginPath();
     boundary.forEach((p, i) => i ? g.lineTo(sx(p[0]), sy(p[1])) : g.moveTo(sx(p[0]), sy(p[1])));
     g.closePath();
@@ -396,11 +525,33 @@
     g.lineWidth = 2;
     g.stroke();
   }
+  function drawThick(g) {
+    const sh = SHAPES[currentKey];
+    if (!sh.thick) return;
+    const pr = sh.thick.r * scale;
+    g.beginPath();
+    sh.thick.pts.forEach((p, i) => i ? g.lineTo(sx(p[0]), sy(p[1])) : g.moveTo(sx(p[0]), sy(p[1])));
+    g.lineCap = "round"; g.lineJoin = "round";
+    g.strokeStyle = T.edge; g.lineWidth = pr * 2 + 3; g.stroke();
+    g.strokeStyle = T.fill; g.lineWidth = pr * 2; g.stroke();
+    g.lineCap = "butt"; g.lineJoin = "miter";
+  }
+  function drawFoci(g) {
+    const foci = SHAPES[currentKey].foci;
+    if (!foci) return;
+    g.fillStyle = T.focus;
+    for (const f of foci) {
+      g.beginPath();
+      g.arc(sx(f[0]), sy(f[1]), 3.5, 0, 2 * Math.PI);
+      g.fill();
+    }
+  }
   function draw() {
     if (!cw) return;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, cw, ch);
-    drawBoundary(ctx);
+    if (boundary) drawBoundary(ctx); else drawThick(ctx);
+    drawFoci(ctx);
     ctx.lineWidth = 1.3;
     ctx.globalAlpha = RAY_ALPHA;
     for (const tr of trajectories) {
@@ -429,9 +580,12 @@
     document.querySelectorAll("#shapes button").forEach(b =>
       b.setAttribute("aria-pressed", String(b.dataset.shape === key)));
     $("shapeInfo").textContent = SHAPES[key].info;
-    boundary = computeBoundary(SHAPES[key].F, SHAPES[key].seed);
-    if (source && SHAPES[key].F(source[0], source[1]) < -0.005) launch(source[0], source[1]);
-    else { trajectories = []; source = null; animT = 0; if (raf) { cancelAnimationFrame(raf); raf = null; } draw(); }
+    const sh = SHAPES[key];
+    boundary = sh.poly ? sh.poly : sh.thick ? null : computeBoundary(sh.F, sh.seed);
+    // не запускаем лучи автоматически — только по клику или кнопке
+    source = null; trajectories = []; animT = 0;
+    if (raf) { cancelAnimationFrame(raf); raf = null; }
+    draw();
   }
   function relaunch() {
     if (source) launch(source[0], source[1]);
@@ -451,6 +605,7 @@
   $("rays").addEventListener("change", relaunch);
   $("bounces").addEventListener("input", () => $("bouncesOut").textContent = $("bounces").value);
   $("bounces").addEventListener("change", relaunch);
+  $("speed").addEventListener("input", () => { speed = +$("speed").value; $("speedOut").textContent = speed; });
 
   $("tAnimate").addEventListener("change", () => { if (trajectories.length) { animT = 0; startAnimation(); } });
   $("tColor").addEventListener("change", draw);
@@ -473,9 +628,10 @@
   // ---------- Старт ----------
   $("raysOut").textContent = $("rays").value;
   $("bouncesOut").textContent = $("bounces").value;
+  $("speedOut").textContent = $("speed").value;
+  speed = +$("speed").value;
   updateTransform();
   selectShape("circle");
-  launch(0, 0);
 })();
 </script>
 </body>
